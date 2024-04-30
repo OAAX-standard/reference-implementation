@@ -1,4 +1,5 @@
 # Folders
+*.egg-info
 build
 cmake-build-debug
 .idea
