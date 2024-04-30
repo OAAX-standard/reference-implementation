@@ -80,13 +80,13 @@ int runtime_inference_execution(tensors_struct *input_tensors, tensors_struct *o
     int error = 0;
     int number_inputs = (int) input_tensors->num_tensors;
     uint8_t **inputs = (uint8_t **) input_tensors->data;
-    int64_t **input_shapes = (int64_t **) input_tensors->shapes;
-    int32_t *input_ranks = (int32_t *) input_tensors->ranks;
+    long int **input_shapes = (long int **) input_tensors->shapes;
+    size_t *input_ranks = (size_t *) input_tensors->ranks;
     size_t *input_sizes = (size_t *) malloc(sizeof(size_t) * number_inputs);
 
     for (int i = 0; i < number_inputs; i++) {
         input_sizes[i] = 1;
-        for (int j = 0; j < input_ranks[i]; j++)
+        for (size_t j = 0; j < input_ranks[i]; j++)
             input_sizes[i] *= input_shapes[i][j];
     }
 
@@ -99,6 +99,7 @@ int runtime_inference_execution(tensors_struct *input_tensors, tensors_struct *o
     // Make sure that the number of input tensors is the same as the one passed to the runtime
     if (number_inputs != (int) input_tensors->num_tensors) {
         printf("Error: RUNTIME - The number of input tensors does not match the number of input tensors in the model.\n");
+        printf("Expected: %d, Got: %zu\n", number_inputs, input_tensors->num_tensors);
         free(input_dtypes);
         free(input_sizes);
         for (int i = 0; i < number_inputs; i++) free(input_names[i]);
@@ -243,7 +244,7 @@ int runtime_destruction() {
 }
 
 const char *runtime_error_message() {
-    return "Not implemented.";
+    return "Check the stdout for the error message.";
 }
 
 const char *runtime_version() {
