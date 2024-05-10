@@ -28,4 +28,6 @@ shared library, respectively.
 ## Pre-built OAX artifacts
 
 If you're interested in using the OAX toolchain and runtime without building them, you can find them in the
-[contributions](https://github.com/oax-standard/contributions) repository.
+[contributions](https://github.com/oax-standard/contributions) repository.   
+Additionally, you can find a diverse set of examples and applications of using the OAX runtime in the 
+[examples](https://github.com/oax-standard/examples) repository.

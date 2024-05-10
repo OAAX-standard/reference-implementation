@@ -6,7 +6,7 @@ implemented.
 For the sake of example, we'll build a Docker image (toolchain) that converts a non-optimized ONNX model to optimized
 ONNX model using the [ONNX Simplifier](https://github.com/daquexian/onnx-simplifier) tool.   
 The optimization step includes checking the correctness of the ONNX graph, fusing operators, removing unused nodes, and
-applying other optimizations. Hence, the model is expected to be smaller and faster to run.
+applying other optimizations. Hence, the resulting model is expected to be smaller and efficient for deployment.
 
 ## Getting started
 
@@ -16,7 +16,8 @@ The entrypoint script takes two parameters:
 - The path to the output directory where the optimized model will be saved, along with a logs file that contains
   the conversion process logs.
 
-The conversion toolchain relies on the Python package `conversion_toolchain` which is installed in the Docker image.
+The conversion toolchain relies on the Python package `conversion_toolchain` which is installed in the Docker image
+during the build stage.
 
 To build the example Docker image, run the following command (Note that you need to have Docker installed):
 ```bash
