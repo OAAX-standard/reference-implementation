@@ -1,6 +1,6 @@
-# OAX Conversion toolchain
+# OAAX Conversion toolchain
 
-This reference implementation of an OAX conversion toolchain is a simple example of how a conversion toolchain should be
+This reference implementation of an OAAX conversion toolchain is a simple example of how a conversion toolchain should be
 implemented.
 
 For the sake of example, we'll build a Docker image (toolchain) that converts a non-optimized ONNX model to optimized
