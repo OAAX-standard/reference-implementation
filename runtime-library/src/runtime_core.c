@@ -153,7 +153,8 @@ int runtime_inference_execution(tensors_struct *input_tensors, tensors_struct *o
     free(input_dtypes);
     free(input_sizes);
     free(input_values);
-
+    free(input_names);
+    
     void **outputs = malloc(sizeof(void *) * number_outputs);
     size_t **output_shapes = malloc(sizeof(size_t *) * number_outputs);
     size_t *output_ranks = malloc(sizeof(size_t) * number_outputs);
