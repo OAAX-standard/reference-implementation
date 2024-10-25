@@ -14,7 +14,7 @@ rm -rf build 2 &>/dev/null || true
 mkdir -p build
 cd build
 
-cmake ..
+cmake .. -DPLATFORM=X86_64
 make -j
 echo "Build complete. The following shared libraries were created:"
 ls ./*.so

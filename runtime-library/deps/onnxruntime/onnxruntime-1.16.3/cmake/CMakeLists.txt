@@ -214,10 +214,6 @@ option(onnxruntime_ENABLE_CUDA_PROFILING "Enable CUDA kernel profiling" OFF)
 option(onnxruntime_ENABLE_ROCM_PROFILING "Enable ROCM kernel profiling" OFF)
 
 option(onnxruntime_ENABLE_CPUINFO "Enable cpuinfo" ON)
-option(onnxruntime_CMAKE_SYSTEM_PROCESSOR "Specify the target processor" "")
-if (onnxruntime_CMAKE_SYSTEM_PROCESSOR)
-  set(CMAKE_SYSTEM_PROCESSOR ${onnxruntime_CMAKE_SYSTEM_PROCESSOR})
-endif()
 
 # ATen fallback support
 option(onnxruntime_ENABLE_ATEN "Enable ATen fallback" OFF)

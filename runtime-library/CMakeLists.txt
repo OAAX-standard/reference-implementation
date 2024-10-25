@@ -7,23 +7,27 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DEPS_DIR ${CMAKE_CURRENT_LIST_DIR}/deps)
 
-######################### DEAMON settings ##############################################################################
-
-# set to 1 for debugging, to 0 for release
-set(DAEMON_NO_CLOSE_STDIO 1)
-set(DAEMON_NO_CHDIR 1)
-set(DAEMON_NO_FORK 0)
+# add string option to specify the target platform
+set(PLATFORM "NONE" CACHE STRING "The target platform")
 
 ######################### customize when cross-compiling ###############################################################
 
-# set generic build target
-set(GENERIC_BUILD_TARGET X86_64_GLIBC)
-
 # set COMPILER_PREFIX, for example, "" for default compiler, arm-linux- , or aarch64-linux- etc for cross compilers
-set(CROSS_NAME "X86_64")
-set(CROSS_ROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0")
-set(COMPILER_PREFIX "x86_64-unknown-linux-gnu-")
-set(SYSROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0/x86_64-unknown-linux-gnu/sysroot")
+# set generic build target
+if (PLATFORM STREQUAL "X86_64")
+  set(GENERIC_BUILD_TARGET X86_64)
+  set(CROSS_ROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0")
+  set(COMPILER_PREFIX "x86_64-unknown-linux-gnu-")
+  set(SYSROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0/x86_64-unknown-linux-gnu/sysroot")
+  set(CMAKE_BUILD_FLAGS " -fno-math-errno -fopenmp -std=c99 -march=haswell")
+elseif (PLATFORM STREQUAL "AARCH64")
+  set(GENERIC_BUILD_TARGET AARCH64)
+  # set(CROSS_ROOT "/opt/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu")
+  set(CROSS_ROOT "/opt/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu")
+  set(COMPILER_PREFIX "aarch64-none-linux-gnu-")
+else()
+  message(FATAL_ERROR "Please specify the target platform: X86_64 or AARCH64")
+endif()
 
 set(CMAKE_C_COMPILER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}g++)
@@ -39,11 +43,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(BUILD X86_64-linux-gnu)
 set(HOST ${GENERIC_BUILD_TARGET}-linux)
 set(TARGET ${GENERIC_BUILD_TARGET})
-
-# set compiler flags
-# see https://gist.github.com/robinvanemden/72aa87b1a656d5cd4a06ea0a9b77e4ac
-# also: NEON on aarch64 is automatically implied (https://stackoverflow.com/a/29891469)
-set(CMAKE_BUILD_FLAGS " -fno-math-errno -fopenmp -std=c99 -march=haswell")
 
 ######################### webassembly wamr settings ####################################################################
 
@@ -122,6 +121,8 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_BUILD_FLAGS}")
 file(GLOB_RECURSE SRC
         ${SRC_DIR}/runtime_utils.c
         ${SRC_DIR}/runtime_core.c
+        ${DEPS_DIR}/utils/queue.c
+        ${DEPS_DIR}/utils/logger.c
 )
 ######################## main bin build settings #######################################################################
 
@@ -130,10 +131,12 @@ add_library(RuntimeLibrary SHARED ${SRC})
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   target_compile_options(RuntimeLibrary PUBLIC
-    -Ofast -s
+    -Ofast -s -g
   )
 endif()
-
+target_compile_options(RuntimeLibrary PUBLIC
+    -Ofast -s -g
+  )
 # debugging on/off RuntimeLibrary
 if (NX_DEBUG)
     target_compile_definitions(RuntimeLibrary PRIVATE NX_DEBUG_PRINT)
@@ -141,6 +144,7 @@ endif ()
 
 # target include / link dirs
 target_include_directories(RuntimeLibrary PUBLIC ${INCLUDE_DIR})
+target_include_directories(RuntimeLibrary PUBLIC ${DEPS_DIR}/utils)
 
 set(RE2_DIR "${DEPS_DIR}/re2")
 set(ONNX_RUNTIME_DIR "${DEPS_DIR}/onnxruntime")
@@ -203,6 +207,8 @@ target_link_libraries(
         protobuf-lite
         cpuinfo
         re2
+
+        pthread
 
         stdc++
 )
