@@ -29,21 +29,22 @@ def cli():
 
     mime_type = 'application/x-onnx; device=cpu'
 
-    logs.add_message('Successful Conversion',
-                     {
-                         "Output Directory": output_dir,
-                         "Output file name": new_onnx_filename,
-                         "MIME type": mime_type,
-                         "Output file MD5": md5_hash(new_onnx_path),
-                         "Logs file name": "logs.json"
-                     }
-                     )
-
     # Copy optimized model and logs to the output directory
     from shutil import copy
     logs.save_as_json(logs_path)
     if optimized_onnx_path.strip() != new_onnx_path.strip():
         copy(optimized_onnx_path, new_onnx_path)
+        
+    # Add message to logs
+    logs.add_message('Successful Conversion',
+                    {
+                        "Output Directory": output_dir,
+                        "Output file name": new_onnx_filename,
+                        "MIME type": mime_type,
+                        "Output file MD5": md5_hash(new_onnx_path),
+                        "Logs file name": "logs.json"
+                    }
+                    )
 
     # Print logs to stdout
     print(logs)
