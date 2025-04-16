@@ -2,14 +2,19 @@ set -e
 
 cd "$(dirname "$0")" || exit 1
 
+# Read version from the version file
+VERSION_FILE="../VERSION"
+if [ ! -f "$VERSION_FILE" ]; then
+    echo "Version file not found: $VERSION_FILE"
+    exit 1
+fi
+VERSION=$(<"$VERSION_FILE")
+
 rm -rf artifacts 2&> /dev/null || true
 mkdir artifacts
 
 # Build the toolchain as a Docker image
-docker build -t conversion-toolchain:latest .
+docker build -t oaax-cpu-toolchain:$VERSION .
 
 # Save the Docker image as a tarball
-docker save conversion-toolchain:latest -o ./artifacts/conversion-toolchain-latest.tar
-
-# You can run the conversion toolchain using the following command:
-# docker run -v /path/to/onnx-dir:/onnx conversion-toolchain:latest /onnx/model.onnx /onnx
+docker save oaax-cpu-toolchain:$VERSION -o ./artifacts/oaax-cpu-toolchain.tar
