@@ -7,7 +7,8 @@ set -e
 cd "$(dirname "$0")"
 
 # Install ubuntu packages
-apt-get install wget curl
+export DEBIAN_FRONTEND=noninteractive
+apt-get install -y wget curl
 
 # Define an array of URLs for downloading toolchains
 toolchain_urls=(
