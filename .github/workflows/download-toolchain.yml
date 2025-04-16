@@ -1,0 +1,37 @@
+name: Download Toolchain
+
+on:
+  workflow_dispatch:  # Trigger manually or adapt as needed
+  push:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v3
+
+      - name: Install s3cmd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y s3cmd
+
+      - name: Configure s3cmd
+        run: |
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          bucket_location = us-east-1
+          host_base = ${{ secrets.S3_ENDPOINT_URL }}
+          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
+          use_https = True
+          EOF
+
+      - name: Download toolchain from custom S3
+        run: |
+          s3cmd get s3://${{ secrets.S3_BUCKET_NAME }}/toolchains/x86_64-unknown-linux-gnu-gcc-9.5.0.tar.gz
+
+      - name: List downloaded files (for debug)
+        run: ls -lh
