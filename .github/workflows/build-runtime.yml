@@ -6,7 +6,9 @@ on:
 
 jobs:
   download:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    container:
+      image: ubuntu:22.04  # or any other image
 
     steps:
       - name: Checkout
