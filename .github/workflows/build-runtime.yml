@@ -32,7 +32,7 @@ jobs:
           EOF
 
       - name: Set up environment
-        run: bash scripts/setup_env.sh
+        run: bash scripts/setup-env.sh
 
       - name: Cross-compile runtimes
         run: bash runtime-library/build-runtimes.sh

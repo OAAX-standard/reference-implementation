@@ -30,3 +30,13 @@ for url in "${toolchain_urls[@]}"; do
     # Log the successful extraction of the file
     echo ">>>>>>>>>>> extracted: $filename"
 done
+
+# Install cmake
+host_platform=$(uname -m)
+wget https://cmake.org/files/v3.31/cmake-3.31.7-linux-${host_platform}.sh \
+    -q -O /tmp/cmake-install.sh &&
+    chmod u+x /tmp/cmake-install.sh &&
+    mkdir /opt/cmake-3.31.7 &&
+    /tmp/cmake-install.sh --skip-license --prefix=/opt/cmake-3.31.7 &&
+    rm /tmp/cmake-install.sh &&
+    ln -s /opt/cmake-3.31.7/bin/* /usr/local/bin
