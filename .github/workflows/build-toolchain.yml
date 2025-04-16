@@ -20,6 +20,7 @@ jobs:
 
       - name: Install s3cmd
         run: |
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y s3cmd docker.io
 
