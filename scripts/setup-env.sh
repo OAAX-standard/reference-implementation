@@ -40,3 +40,6 @@ wget https://cmake.org/files/v3.31/cmake-3.31.7-linux-${host_platform}.sh \
     /tmp/cmake-install.sh --skip-license --prefix=/opt/cmake-3.31.7 &&
     rm /tmp/cmake-install.sh &&
     ln -s /opt/cmake-3.31.7/bin/* /usr/local/bin
+
+# Install ubuntu packages
+apt-get install wget curl
