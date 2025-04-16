@@ -27,7 +27,7 @@ if ! s3cmd --help &>/dev/null; then
 fi
 
 # Upload files to the object storage using s3cmd
-echo "Uploading files to s3://$OBJECT_KEY..."
+echo "Uploading files to $OBJECT_KEY..."
 s3cmd put "$@" "$OBJECT_KEY"
 
 echo "Upload completed successfully."
