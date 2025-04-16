@@ -7,8 +7,8 @@ on:
       - 'refs/tags/*'  # Trigger on tags
 
 jobs:
-  timeout-minutes: 10  # Set a timeout of 10 minutes for the job
   build-runtimes:
+    timeout-minutes: 10  # Set a timeout of 10 minutes for the job
     runs-on: self-hosted
     container:
       image: ubuntu:22.04  # or any other image
