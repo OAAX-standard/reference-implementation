@@ -1,5 +1,8 @@
 # Reference Implementation
 
+[![Build OAAX conversion toolchain](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-toolchain.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-toolchain.yml)
+[![Build OAAX runtime](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-runtime.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-runtime.yml)
+
 This repository contains the source code for building the reference implementation of the OAAX runtime and conversiontoolchain.
 
 > If you're new to OAAX, you can find more information about the OAAX standard in
