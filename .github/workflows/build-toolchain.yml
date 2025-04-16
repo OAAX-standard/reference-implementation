@@ -1,15 +1,15 @@
-name: Build OAAX runtime
+name: Build OAAX conversion toolchain
 
 on:
   push:
     
 
 jobs:
-  build-runtimes:
+  build-toolchain:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
     runs-on: self-hosted
     container:
-      image: ubuntu:22.04  # or any other image
+      image: docker:dind  # or any other image
 
     steps:
       - name: Checkout
@@ -34,16 +34,13 @@ jobs:
           use_https = True
           EOF
 
-      - name: Set up environment
-        run: bash scripts/setup-env.sh
-
-      - name: Cross-compile runtimes
-        run: bash runtime-library/build-runtimes.sh
+      - name: Build conversion toolchain image
+        run: bash conversion-toolchain/build-toolchain.sh
 
       - name: Determine version
         id: version
         run: echo "version=${{ github.ref_type == 'tag' && github.ref_name || 'nightly' }}" >> $GITHUB_ENV
 
-      - name: Upload runtimes to S3
+      - name: Upload Docker image to S3
         run: |
-          bash scripts/upload-to-storage.sh "runtimes/${{ env.version }}/CPU" runtime-library/artifacts/*.gz
+          bash scripts/upload-to-storage.sh "conversion-toolchain/${{ env.version }}/CPU" conversion-toolchain/artifacts/*.tar
