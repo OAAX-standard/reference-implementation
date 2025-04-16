@@ -5,7 +5,7 @@ on:
   push:
 
 jobs:
-  download:
+  build-runtimes:
     runs-on: self-hosted
     container:
       image: ubuntu:22.04  # or any other image
@@ -18,8 +18,8 @@ jobs:
 
       - name: Install s3cmd
         run: |
-          sudo apt-get update
-          sudo apt-get install -y s3cmd
+          apt-get update
+          apt-get install -y s3cmd
 
       - name: Configure s3cmd
         run: |
