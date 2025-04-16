@@ -42,8 +42,13 @@ jobs:
         run: bash conversion-toolchain/build-toolchain.sh
 
       - name: Determine version
-        id: version
-        run: echo "version=${{ github.ref_type == 'tag' && github.ref_name || 'nightly' }}" >> $GITHUB_ENV
+        run: |
+          if [ -f VERSION ]; then
+            version=$(cat VERSION)
+          else
+            exit 1
+          fi
+          echo "version=$version" >> $GITHUB_ENV
 
       - name: Upload Docker image to S3
         run: |
