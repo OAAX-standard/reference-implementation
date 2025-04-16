@@ -1,10 +1,13 @@
 name: Build OAAX runtime
 
 on:
-  workflow_dispatch:  # Trigger manually or adapt as needed
   push:
+    branches:
+      - main
+      - 'refs/tags/*'  # Trigger on tags
 
 jobs:
+  timeout-minutes: 10  # Set a timeout of 10 minutes for the job
   build-runtimes:
     runs-on: self-hosted
     container:
@@ -39,6 +42,10 @@ jobs:
       - name: Cross-compile runtimes
         run: bash runtime-library/build-runtimes.sh
 
+      - name: Determine version
+        id: version
+        run: echo "version=${{ github.ref_type == 'tag' && github.ref_name || 'nightly' }}" >> $GITHUB_ENV
+
       - name: Upload runtimes to S3
         run: |
-          bash scripts/upload-to-storage.sh nightly runtime-library/artifacts/*.gz
+          bash scripts/upload-to-storage.sh ${{ env.version }} runtime-library/artifacts/*.gz
