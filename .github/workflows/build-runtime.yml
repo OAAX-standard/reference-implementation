@@ -2,7 +2,9 @@ name: Build OAAX runtime
 
 on:
   push:
-    
+    branches:
+      - main
+      - 'refs/tags/*'  # Trigger on tags
 
 jobs:
   build-runtimes:

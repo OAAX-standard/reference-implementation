@@ -9,13 +9,16 @@ jobs:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
     runs-on: self-hosted
     container:
-      image: docker:dind  # or any other image
+      image: ubuntu-latest  # or any other image
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Install s3cmd
         run: |
