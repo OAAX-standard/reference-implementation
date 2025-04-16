@@ -35,7 +35,7 @@ jobs:
         run: bash scripts/setup_env.sh
 
       - name: Cross-compile runtimes
-        run: bash scripts/build-runtimes.sh
+        run: bash runtime-library/build-runtimes.sh
 
       - name: Upload runtimes to S3
         run: |
