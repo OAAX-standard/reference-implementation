@@ -1,4 +1,4 @@
-name: Download Toolchain
+name: Build OAAX runtime
 
 on:
   workflow_dispatch:  # Trigger manually or adapt as needed
@@ -9,8 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (optional)
+      - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
 
       - name: Install s3cmd
         run: |
@@ -29,9 +31,12 @@ jobs:
           use_https = True
           EOF
 
-      - name: Download toolchain from custom S3
-        run: |
-          s3cmd get s3://${{ secrets.S3_BUCKET_NAME }}/toolchains/x86_64-unknown-linux-gnu-gcc-9.5.0.tar.gz
+      - name: Set up environment
+        run: bash scripts/setup_env.sh
 
-      - name: List downloaded files (for debug)
-        run: ls -lh
+      - name: Cross-compile runtimes
+        run: bash scripts/build-runtimes.sh
+
+      - name: Upload runtimes to S3
+        run: |
+          bash scripts/upload-to-storage.sh nightly runtime-library/artifacts/*.gz
