@@ -164,6 +164,8 @@ target_link_directories(RuntimeLibrary PUBLIC "${ONNX_RUNTIME_DIR}/${GENERIC_BUI
 target_link_libraries(
         RuntimeLibrary
         PUBLIC
+        
+        -Wl,--start-group
         onnxruntime_session
         onnxruntime_optimizer
         onnxruntime_providers
@@ -211,4 +213,6 @@ target_link_libraries(
         pthread
 
         stdc++
+
+        -Wl,--end-group
 )
