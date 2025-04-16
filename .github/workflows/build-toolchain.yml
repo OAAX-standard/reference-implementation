@@ -9,7 +9,8 @@ jobs:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
     runs-on: self-hosted
     container:
-      image: ubuntu-latest  # or any other image
+      image: ubuntu:22.04  # or any other image
+      options: --volume /var/run/docker.sock:/var/run/docker.sock
 
     steps:
       - name: Checkout
@@ -17,13 +18,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Install s3cmd
         run: |
           apt-get update
-          apt-get install -y s3cmd
+          apt-get install -y s3cmd docker.io
 
       - name: Configure s3cmd
         run: |
