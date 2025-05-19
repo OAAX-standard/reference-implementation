@@ -85,28 +85,3 @@ char **runtime_core_get_output_names( OrtSession *session, OrtAllocator *allocat
 
     return output_names;
 }
-
-int64_t runtime_util_get_sizeof_onnx_type( int32_t datatype ) {
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__INT8 )
-        return sizeof( int8_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__UINT8 )
-        return sizeof( uint8_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__BOOL )
-        return sizeof( bool );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__INT16 )
-        return sizeof( int16_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__INT16 )
-        return sizeof( int16_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__UINT16 )
-        return sizeof( uint16_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__INT32 )
-        return sizeof( int32_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__INT64 )
-        return sizeof( int64_t );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__FLOAT )
-        return sizeof( float );
-    if ( datatype == ONNX__TENSOR_PROTO__DATA_TYPE__DOUBLE )
-        return sizeof( double );
-    return 0;
-}
-

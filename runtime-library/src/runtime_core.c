@@ -390,7 +390,7 @@ static int runtime_inference_execution(int session_id, tensors_struct *input_ten
         RUNTIME_ORT_CORE_EXEC(runtime_core_process_status(
                                   api->CreateTensorWithDataAsOrtValue(memory_infos[session_id],
                                                                       inputs[i],
-                                                                      input_sizes[i] * runtime_util_get_sizeof_onnx_type(input_dtypes[i]),
+                                                                      input_sizes[i] * get_data_type_byte_size(input_dtypes[i]),
                                                                       input_shapes[i],
                                                                       input_ranks[i],
                                                                       input_dtypes[i],
@@ -481,7 +481,7 @@ static int runtime_inference_execution(int session_id, tensors_struct *input_ten
         RUNTIME_ORT_CORE_EXEC(runtime_core_process_status(api->GetDimensions(type_shape, (int64_t *)output_shapes[i], rank)), error);
 
         // get output value
-        size_t output_bytes = size * runtime_util_get_sizeof_onnx_type(output_dtypes[i]);
+        size_t output_bytes = size * get_data_type_byte_size(output_dtypes[i]);
         outputs[i] = malloc(output_bytes);
         if (outputs[i] == NULL)
         {

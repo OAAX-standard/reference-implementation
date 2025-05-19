@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include "onnx.pb-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -41,8 +40,6 @@ char **runtime_core_get_input_names(OrtSession *session, OrtAllocator *allocator
  * @return Array of output names
  */
 char **runtime_core_get_output_names(OrtSession *session, OrtAllocator *allocator, int32_t *output_names_count, int32_t **output_data_types);
-
-int64_t runtime_util_get_sizeof_onnx_type(int32_t datatype);
 
 
 #endif //RUNTIME_C_RUNTIMES_ORT_CORE_INCLUDE_RUNTIME_RUNTIME_UTILS_H_
