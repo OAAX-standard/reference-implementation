@@ -12,8 +12,6 @@
 
 // C standard libraries
 #include <errno.h>
-#include <pthread.h>
-#include <stdatomic.h>
 #include <string.h>
 #include <time.h>
 

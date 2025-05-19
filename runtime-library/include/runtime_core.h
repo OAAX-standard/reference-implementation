@@ -3,12 +3,14 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <unistd.h>
 
-#include "tensors_struct.h"  // NOLINT(build/include_subdir)
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+#include "tensors_struct.h" // NOLINT(build/include_subdir)
 
 #include <onnxruntime/core/session/onnxruntime_c_api.h>
-
 
 /**
  * @brief This function is called only once to initialize the runtime environment.
@@ -27,12 +29,12 @@ int runtime_model_loading(const char *file_path);
 
 /**
  * @brief This function is called to store the input tensors to be processed by the runtime when it's ready.
- * 
- * @note This function copies the reference of the input tensors, not the tensors themselves. 
+ *
+ * @note This function copies the reference of the input tensors, not the tensors themselves.
  * The runtime will free the memory of the input tensors after its processed.
  *
- * @param tensors The input tensors for the inference processing. 
- * 
+ * @param tensors The input tensors for the inference processing.
+ *
  * @return 0 if the input tensors are stored successfully, and non-zero otherwise.
  */
 int send_input(tensors_struct *input_tensors);
@@ -41,9 +43,9 @@ int send_input(tensors_struct *input_tensors);
  * @brief This function is called to retrieve any available output tensors after the inference process is done.
  *
  * @note The caller is responsible for managing the memory of the output tensors.
- * 
+ *
  * @param output_tensors The output tensors of the inference process.
- * 
+ *
  * @return 0 if an output is available and returned, and non-zero otherwise.
  */
 int receive_output(tensors_struct **output_tensors);
