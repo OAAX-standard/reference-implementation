@@ -6,9 +6,13 @@ project(RuntimeLibrary)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DEPS_DIR ${CMAKE_CURRENT_LIST_DIR}/deps)
+set(TOOLS_C_UTILITIES_DIR ${DEPS_DIR}/tools/c-utilities)
+set(TOOLS_C_UTILITIES_INCLUDE_DIR ${DEPS_DIR}/tools/c-utilities/include)
 
-# add string option to specify the target platform
-set(PLATFORM "NONE" CACHE STRING "The target platform")
+if(NOT DEFINED PLATFORM)
+  message(FATAL_ERROR "Please specify the target platform: -DPLATFORM=X86_64 or -DPLATFORM=AARCH64")
+endif()
+# set(PLATFORM "${PLATFORM}" CACHE STRING "The target platform" FORCE)
 
 ######################### customize when cross-compiling ###############################################################
 
@@ -26,7 +30,7 @@ elseif (PLATFORM STREQUAL "AARCH64")
   set(CROSS_ROOT "/opt/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu")
   set(COMPILER_PREFIX "aarch64-none-linux-gnu-")
 else()
-  message(FATAL_ERROR "Please specify the target platform: X86_64 or AARCH64")
+  message(FATAL_ERROR "Please specify the target platform: X86_64 or AARCH64. Found ${PLATFORM}")
 endif()
 
 set(CMAKE_C_COMPILER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}gcc)
@@ -64,7 +68,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wformat -Wformat-security -fd
 
 INCLUDE(CMakeForceCompiler)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 set(CMAKE_BUILD_FLAGS " ${CMAKE_BUILD_FLAGS} -std=c99 -fno-common -Wall -Wextra")
 set(CMAKE_BUILD_FLAGS " ${CMAKE_BUILD_FLAGS} -Wno-missing-field-initializers -fno-exceptions")
@@ -117,12 +121,13 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_BUILD_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_BUILD_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_BUILD_FLAGS}")
 
+# Linker flag to error on undefined symbols when building shared libraries
+# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
+
 # add all source files
 file(GLOB_RECURSE SRC
         ${SRC_DIR}/runtime_utils.c
         ${SRC_DIR}/runtime_core.c
-        ${DEPS_DIR}/utils/queue.c
-        ${DEPS_DIR}/utils/logger.c
 )
 ######################## main bin build settings #######################################################################
 
@@ -144,7 +149,7 @@ endif ()
 
 # target include / link dirs
 target_include_directories(RuntimeLibrary PUBLIC ${INCLUDE_DIR})
-target_include_directories(RuntimeLibrary PUBLIC ${DEPS_DIR}/utils)
+target_include_directories(RuntimeLibrary PUBLIC ${TOOLS_C_UTILITIES_INCLUDE_DIR})
 
 set(RE2_DIR "${DEPS_DIR}/re2")
 set(ONNX_RUNTIME_DIR "${DEPS_DIR}/onnxruntime")
@@ -152,15 +157,20 @@ set(CPUINFO_DIR "${DEPS_DIR}/cpuinfo")
 
 target_include_directories(RuntimeLibrary PUBLIC ${RE2_DIR}/include)
 target_link_directories(RuntimeLibrary PUBLIC "${RE2_DIR}/${GENERIC_BUILD_TARGET}")
-target_link_libraries(RuntimeLibrary PUBLIC re2)
 
 target_include_directories(RuntimeLibrary PUBLIC ${CPUINFO_DIR}/include)
 target_link_directories(RuntimeLibrary PUBLIC "${CPUINFO_DIR}/${GENERIC_BUILD_TARGET}")
-target_link_libraries(RuntimeLibrary PUBLIC cpuinfo)
 
 target_include_directories(RuntimeLibrary PUBLIC ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include)
 target_include_directories(RuntimeLibrary PUBLIC ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include/onnxruntime/core/session)
 target_link_directories(RuntimeLibrary PUBLIC "${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}")
+
+# Link to the c-utilities library
+add_subdirectory(
+    ${TOOLS_C_UTILITIES_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/c_utilities
+)
+
 target_link_libraries(
         RuntimeLibrary
         PUBLIC
@@ -207,12 +217,15 @@ target_link_libraries(
         onnx
         onnx_proto
         protobuf-lite
+
         cpuinfo
         re2
 
         pthread
+        dl
+      
+        c_utilities
 
         stdc++
-
         -Wl,--end-group
 )

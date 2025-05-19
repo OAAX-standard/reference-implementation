@@ -44,6 +44,5 @@ char **runtime_core_get_output_names(OrtSession *session, OrtAllocator *allocato
 
 int64_t runtime_util_get_sizeof_onnx_type(int32_t datatype);
 
-void free_tensors_struct(tensors_struct *tensors);
 
 #endif //RUNTIME_C_RUNTIMES_ORT_CORE_INCLUDE_RUNTIME_RUNTIME_UTILS_H_
