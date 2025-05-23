@@ -16,7 +16,7 @@
 #include <time.h>
 
 // Macro to handle errors
-#define RUNTIME_ORT_CORE_EXEC(return_code, error) ({int32_t code = return_code; if (code != 0) {error = code; goto cleanup;} })
+#define RUNTIME_ORT_CORE_EXEC(return_code, error) do { int32_t code = (return_code); if (code != 0) { error = code; goto cleanup; } } while (0)
 
 // Runtime configuration
 static int n_duplicates = 1;
