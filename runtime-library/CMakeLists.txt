@@ -19,13 +19,13 @@ set(CPUINFO_DIR "${DEPS_DIR}/cpuinfo")
 
 # === Platform Selection and Toolchain Setup ===
 # Select platform and set cross-compilation toolchain variables
-if(NOT DEFINED PLATFORM)
-  message(FATAL_ERROR "Please specify the target platform: -DPLATFORM=X86_64 or -DPLATFORM=AARCH64")
+if(WIN32)
+  set(PLATFORM WINDOWS)
 endif()
 
-# Force the compiler to be set to the one specified in the toolchain file
-# This is necessary for cross-compilation to work correctly
-INCLUDE(CMakeForceCompiler)
+if(NOT DEFINED PLATFORM)
+  message(FATAL_ERROR "Please specify the target platform: -DPLATFORM=X86_64, -DPLATFORM=AARCH64, or use Windows.")
+endif()
 
 if (PLATFORM STREQUAL "X86_64")
   set(GENERIC_BUILD_TARGET X86_64)
@@ -43,8 +43,15 @@ elseif (PLATFORM STREQUAL "AARCH64")
   # set(CROSS_ROOT "/opt/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu")
   set(CROSS_ROOT "/opt/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu")
   set(COMPILER_PREFIX "aarch64-none-linux-gnu-")
+elseif (PLATFORM STREQUAL "WINDOWS")
+  set(GENERIC_BUILD_TARGET X86_64_WINDOWS)
+  set(CMAKE_SYSTEM_NAME Windows)
+  # Use default MSVC toolchain, do not set cross-compilation variables
+  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
+  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
 else()
-  message(FATAL_ERROR "Please specify the target platform: X86_64 or AARCH64. Found ${PLATFORM}")
+  message(FATAL_ERROR "Please specify the target platform: X86_64, AARCH64, or WINDOWS. Found ${PLATFORM}")
 endif()
 
 # Print toolchain and sysroot info for debugging
@@ -78,33 +85,15 @@ set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS " ")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS " ")
 
 # Add common warning and optimization flags for C and C++
-# -fno-common: Prevents multiple definitions of common symbols (reduces binary size).
-# -Wall: Enables most compiler warning messages.
-# -Wextra: Enables additional warning messages.
-# -Wformat: Enables warnings for format string issues.
-# -Wformat-security: Enables warnings for format string security issues.
-# -Wno-missing-field-initializers: Suppresses warnings for missing field initializers.
-# -Wno-attribute-warning: Suppresses warnings for attribute-related issues.
-# -fdata-sections: Places each data item in its own section in the output file.
-# -ffunction-sections: Places each function in its own section in the output file.
-# -Wl,--gc-sections: Tells the linker to remove unused sections (dead code/data) from the final binary.
-# -fno-exceptions: Disables exception handling (reduces binary size).
-set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -std=c99 -fno-common -Wall -Wextra -Wformat -Wformat-security")
-set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -Wno-missing-field-initializers -Wno-attribute-warning")
-set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fdata-sections -ffunction-sections -Wl,--gc-sections -fno-exceptions")
-# -Wall                # Enables most compiler warning messages
-# -Wextra             # Enables additional warning messages
-# -Wformat            # Enables warnings for format string issues
-# -Wformat-security    # Enables warnings for format string security issues
-# -fdata-sections     # Places each data item in its own section in the output file
-# -ffunction-sections # Places each function in its own section in the output file
-# -Wl,--gc-sections   # Tells the linker to remove unused sections (dead code/data) from the final binary
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wformat -Wformat-security -fdata-sections -ffunction-sections -Wl,--gc-sections")
-# -D_GNU_SOURCE: Defines the _GNU_SOURCE macro for GNU-specific features.
-# -I${CROSS_ROOT}/include: Adds the include directory for the cross-compilation toolchain.
-set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
-set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
-set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
+if(NOT MSVC)
+  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -std=c99 -fno-common -Wall -Wextra -Wformat -Wformat-security")
+  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -Wno-missing-field-initializers -Wno-attribute-warning")
+  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fdata-sections -ffunction-sections -Wl,--gc-sections -fno-exceptions")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wformat -Wformat-security -fdata-sections -ffunction-sections -Wl,--gc-sections")
+  set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
+  set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
+  set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
+endif()
 
 # === Generic Build Settings ===
 # Set basic C, C++, and linker flags
@@ -128,27 +117,39 @@ file(GLOB_RECURSE SRC
 add_library(RuntimeLibrary SHARED ${SRC})
 
 # Add optimization and debug flags for Release builds
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-  target_compile_options(RuntimeLibrary PUBLIC
-    -Ofast # Enable aggressive optimizations for speed (may break strict standards compliance)
-    -s     # Strip all symbol information from the output binary (reduces size)
-    -g     # Generate debug information (minimal, for backtraces)
-  )
-elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-  target_compile_options(RuntimeLibrary PUBLIC
-    -O0    # No optimization (easier debugging)
-    -g3    # Generate maximum debug information
-  )
-elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
-  target_compile_options(RuntimeLibrary PUBLIC
-    -O2    # Optimize for speed, but less aggressively than -Ofast
-    -g     # Generate debug information
-  )
-elseif("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
-  target_compile_options(RuntimeLibrary PUBLIC
-    -Os    # Optimize for minimum binary size
-    -g     # Generate debug information
-  )
+if (MSVC)
+  if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+    target_compile_options(RuntimeLibrary PUBLIC /O2 /DNDEBUG)
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    target_compile_options(RuntimeLibrary PUBLIC /Od /Zi /DDEBUG)
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    target_compile_options(RuntimeLibrary PUBLIC /O2 /Zi)
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
+    target_compile_options(RuntimeLibrary PUBLIC /O1)
+  endif()
+else()
+  if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+    target_compile_options(RuntimeLibrary PUBLIC
+      -Ofast # Enable aggressive optimizations for speed (may break strict standards compliance)
+      -s     # Strip all symbol information from the output binary (reduces size)
+      -g     # Generate debug information (minimal, for backtraces)
+    )
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    target_compile_options(RuntimeLibrary PUBLIC
+      -O0    # No optimization (easier debugging)
+      -g3    # Generate maximum debug information
+    )
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    target_compile_options(RuntimeLibrary PUBLIC
+      -O2    # Optimize for speed, but less aggressively than -Ofast
+      -g     # Generate debug information
+    )
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
+    target_compile_options(RuntimeLibrary PUBLIC
+      -Os    # Optimize for minimum binary size
+      -g     # Generate debug information
+    )
+  endif()
 endif()
 
 # === Include Directories ===
@@ -156,8 +157,8 @@ endif()
 target_include_directories(RuntimeLibrary PUBLIC
   ${INCLUDE_DIR}
   ${TOOLS_C_UTILITIES_INCLUDE_DIR}
-  ${RE2_DIR}/include
-  ${CPUINFO_DIR}/include
+  # ${RE2_DIR}/include
+  # ${CPUINFO_DIR}/include
   ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include
   ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include/onnxruntime/core/session
 )
@@ -165,8 +166,8 @@ target_include_directories(RuntimeLibrary PUBLIC
 # === Link Directories ===
 # Specify library search paths for dependencies
 target_link_directories(RuntimeLibrary PUBLIC
-  "${RE2_DIR}/${GENERIC_BUILD_TARGET}"
-  "${CPUINFO_DIR}/${GENERIC_BUILD_TARGET}"
+  # "${RE2_DIR}/${GENERIC_BUILD_TARGET}"
+  # "${CPUINFO_DIR}/${GENERIC_BUILD_TARGET}"
   "${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}"
 )
 
@@ -176,18 +177,121 @@ add_subdirectory(${TOOLS_C_UTILITIES_DIR} ${CMAKE_CURRENT_BINARY_DIR}/c_utilitie
 
 # === Link Libraries ===
 # Link all required libraries and group them for the linker
-# -Wl,--start-group and -Wl,--end-group ensure all symbols are resolved
-# List all ONNX, absl, and other dependencies explicitly
-# Link pthread, dl, c_utilities, and stdc++ as well
-target_link_libraries(RuntimeLibrary PUBLIC
-  -Wl,--start-group
-  onnxruntime_session onnxruntime_optimizer onnxruntime_providers onnxruntime_util
-  onnxruntime_framework onnxruntime_graph onnxruntime_mlas onnxruntime_common onnxruntime_flatbuffers
-  absl_base absl_log_severity absl_malloc_internal absl_raw_logging_internal absl_spinlock_wait absl_throw_delegate
-  absl_hashtablez_sampler absl_raw_hash_set absl_hash absl_city absl_low_level_hash absl_int128 absl_exponential_biased
-  absl_cord absl_cord_internal absl_cordz_functions absl_cordz_handle absl_cordz_info absl_strings absl_strings_internal
-  absl_graphcycles_internal absl_synchronization absl_civil_time absl_time absl_time_zone absl_bad_optional_access absl_bad_variant_access
-  flatbuffers nsync_cpp onnx onnx_proto protobuf-lite
-  cpuinfo re2 pthread dl c_utilities stdc++
-  -Wl,--end-group
-)
+if (MSVC)
+  target_link_libraries(RuntimeLibrary PUBLIC
+    absl_bad_any_cast_impl
+absl_bad_optional_access
+absl_bad_variant_access
+absl_base
+absl_city
+absl_civil_time
+absl_cord
+absl_cordz_functions
+absl_cordz_handle
+absl_cordz_info
+absl_cord_internal
+absl_crc32c
+absl_crc_cord_state
+absl_crc_cpu_detect
+absl_crc_internal
+absl_debugging_internal
+absl_decode_rust_punycode
+absl_demangle_internal
+absl_demangle_rust
+absl_examine_stack
+absl_exponential_biased
+absl_failure_signal_handler
+absl_flags_commandlineflag
+absl_flags_commandlineflag_internal
+absl_flags_config
+absl_flags_internal
+absl_flags_marshalling
+absl_flags_parse
+absl_flags_private_handle_accessor
+absl_flags_program_name
+absl_flags_reflection
+absl_flags_usage
+absl_flags_usage_internal
+absl_graphcycles_internal
+absl_hash
+absl_hashtablez_sampler
+absl_int128
+absl_kernel_timeout_internal
+absl_log_entry
+absl_log_globals
+absl_log_internal_check_op
+absl_log_internal_conditions
+absl_log_internal_fnmatch
+absl_log_internal_format
+absl_log_internal_globals
+absl_log_internal_log_sink_set
+absl_log_internal_message
+absl_log_internal_nullguard
+absl_log_internal_proto
+absl_log_severity
+absl_log_sink
+absl_low_level_hash
+absl_malloc_internal
+absl_raw_hash_set
+absl_raw_logging_internal
+absl_spinlock_wait
+absl_stacktrace
+absl_strerror
+absl_strings
+absl_strings_internal
+absl_string_view
+absl_str_format_internal
+absl_symbolize
+absl_synchronization
+absl_throw_delegate
+absl_time
+absl_time_zone
+absl_utf8_for_code_point
+absl_vlog_config_internal
+custom_op_get_const_input_test_library
+custom_op_invalid_library
+custom_op_library
+custom_op_local_function
+flatbuffers
+gmock
+gtest
+libprotobuf-lite
+libprotobuf
+libprotoc
+onnx
+onnxruntime_common
+onnxruntime_flatbuffers
+onnxruntime_framework
+onnxruntime_graph
+onnxruntime_lora
+onnxruntime_mlas
+onnxruntime_optimizer
+onnxruntime_providers
+onnxruntime_providers_shared
+onnxruntime_session
+onnxruntime_test_utils
+onnxruntime_util
+onnx_proto
+onnx_test_data_proto
+onnx_test_runner_common
+test_execution_provider
+win_getopt_wide
+
+
+    cpuinfo re2 c_utilities
+    ws2_32 bcrypt
+  )
+else()
+  target_link_libraries(RuntimeLibrary PUBLIC
+    -Wl,--start-group
+    onnxruntime_session onnxruntime_optimizer onnxruntime_providers onnxruntime_util
+    onnxruntime_framework onnxruntime_graph onnxruntime_mlas onnxruntime_common onnxruntime_flatbuffers
+    absl_base absl_log_severity absl_malloc_internal absl_raw_logging_internal absl_spinlock_wait absl_throw_delegate
+    absl_hashtablez_sampler absl_raw_hash_set absl_hash absl_city absl_low_level_hash absl_int128 absl_exponential_biased
+    absl_cord absl_cord_internal absl_cordz_functions absl_cordz_handle absl_cordz_info absl_strings absl_strings_internal
+    absl_graphcycles_internal absl_synchronization absl_civil_time absl_time absl_time_zone absl_bad_optional_access absl_bad_variant_access
+    flatbuffers nsync_cpp onnx onnx_proto protobuf-lite
+    cpuinfo re2 pthread dl c_utilities stdc++
+    -Wl,--end-group
+  )
+endif()
