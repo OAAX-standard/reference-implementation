@@ -65,21 +65,6 @@ jobs:
           fetch-depth: 1
           submodules: 'recursive'
           lfs: true
-      - name: Install s5cmd
-        shell: pwsh
-        run: |
-          $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
-          $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
-          $s5cmdPath = "$env:USERPROFILE\s5cmd"
-          Invoke-WebRequest -Uri $s5cmdUrl -OutFile $s5cmdZip
-          Expand-Archive -Path $s5cmdZip -DestinationPath $s5cmdPath -Force
-          Remove-Item -Path $s5cmdZip
-      - name: Add s5cmd to PATH
-        shell: pwsh
-        run: |
-          $s5cmdPath = "$env:USERPROFILE\s5cmd"
-          $env:PATH += ";$s5cmdPath"
-          [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::User)
       - name: Compile runtime
         run: |
           cd runtime-library
@@ -100,6 +85,16 @@ jobs:
           $version = $env:version
           $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
           $targetKey = "runtimes/$version/CPU/Windows/x86_64/library.tar.gz"
+
+          $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
+          $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
+          $s5cmdPath = "$env:USERPROFILE\s5cmd"
+          Invoke-WebRequest -Uri $s5cmdUrl -OutFile $s5cmdZip
+          Expand-Archive -Path $s5cmdZip -DestinationPath $s5cmdPath -Force
+          Remove-Item -Path $s5cmdZip
+
+          $env:PATH += ";$s5cmdPath"
+          [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::User)
 
           if (-Not (Test-Path $artifactPath)) {
             throw "Artifact not found: $artifactPath"
