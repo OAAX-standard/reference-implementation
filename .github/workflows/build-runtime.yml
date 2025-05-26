@@ -85,7 +85,7 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:version
-          $endpoint = "${{ secrets.S3_ENDPOINT_URL }}"
+          $endpoint = "https://${{ secrets.S3_ENDPOINT_URL }}"
           $bucket = "oaax"
           $accessKey = "${{ secrets.S3_ACCESS_KEY }}"
           $secretKey = "${{ secrets.S3_SECRET_KEY }}"
