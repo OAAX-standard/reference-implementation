@@ -65,8 +65,21 @@ jobs:
           fetch-depth: 1
           submodules: 'recursive'
           lfs: true
-      - name: Install AWS CLI (verify)
-        run: aws --version
+      - name: Install s3cmd
+        run: pip install s3cmd
+      - name: Configure s3cmd
+        shell: pwsh
+        run: |
+          $s3cfg = @"
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          bucket_location = us-east-1
+          host_base = ${{ secrets.S3_ENDPOINT_URL }}
+          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
+          use_https = True
+          "@
+          $s3cfg | Out-File -FilePath "$env:USERPROFILE\.s3cfg" -Encoding ascii
       - name: Compile runtime
         run: |
           cd runtime-library
@@ -85,29 +98,14 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:version
-          $endpoint = "https://${{ secrets.S3_ENDPOINT_URL }}"
-          $bucket = "oaax"
-          $accessKey = "${{ secrets.S3_ACCESS_KEY }}"
-          $secretKey = "${{ secrets.S3_SECRET_KEY }}"
           $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
-          $targetKey = "runtimes/$version/CPU/Windows/x86_64/runtime-library-X86_64-Windows.tar.gz"
+          $targetKey = "runtimes/$version/CPU/Windows/x86_64/library.tar.gz"
 
-          # Configure AWS CLI to use custom endpoint
-          aws configure set aws_access_key_id $accessKey
-          aws configure set aws_secret_access_key $secretKey
-          aws configure set default.region us-east-1
-
-          # Validate
           if (-Not (Test-Path $artifactPath)) {
             throw "Artifact not found: $artifactPath"
           }
 
-          # Upload
-          Write-Host "Uploading $artifactPath to s3://$bucket/$targetKey"
-          aws s3 cp `
-            $artifactPath `
-            "s3://$bucket/$targetKey" `
-            --endpoint-url $endpoint `
-            --region us-east-1
+          Write-Host "Uploading $artifactPath to s3://oaax/$targetKey"
+          s3cmd put $artifactPath s3://oaax/$targetKey --config "$env:USERPROFILE\.s3cfg"
             
   
