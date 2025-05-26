@@ -106,6 +106,6 @@ jobs:
           }
 
           Write-Host "Uploading $artifactPath to s3://oaax/$targetKey"
-          s3cmd put $artifactPath s3://oaax/$targetKey --config "$env:USERPROFILE\.s3cfg"
+          python -m s3cmd put $artifactPath s3://oaax/$targetKey --config "$env:USERPROFILE\.s3cfg"
             
   
