@@ -16,7 +16,16 @@
 #include <time.h>
 
 // Macro to handle errors
-#define RUNTIME_ORT_CORE_EXEC(return_code, error) do { int32_t code = (return_code); if (code != 0) { error = code; goto cleanup; } } while (0)
+#define RUNTIME_ORT_CORE_EXEC(return_code, error) \
+    do                                            \
+    {                                             \
+        int32_t code = (return_code);             \
+        if (code != 0)                            \
+        {                                         \
+            error = code;                         \
+            goto cleanup;                         \
+        }                                         \
+    } while (0)
 
 // Runtime configuration
 static int n_duplicates = 1;
@@ -188,11 +197,35 @@ int runtime_model_loading(const char *file_path)
     for (int i = 0; i < n_duplicates; i++)
     {
         session_ids[i] = i;
+#ifdef _WIN32
+        // Convert file_path (UTF-8) to wide string
+        int wlen = MultiByteToWideChar(CP_UTF8, 0, file_path, -1, NULL, 0);
+        if (wlen == 0)
+        {
+            log_error(logger, "Failed to convert file_path to wide string");
+            return 1;
+        }
+        wchar_t *wfile_path = (wchar_t *)malloc(sizeof(wchar_t) * wlen);
+        if (!wfile_path)
+        {
+            log_error(logger, "Memory allocation failed for wfile_path");
+            return 1;
+        }
+        MultiByteToWideChar(CP_UTF8, 0, file_path, -1, wfile_path, wlen);
+        if (runtime_core_process_status(api->CreateSession(envs[i], wfile_path, session_options[i], &sessions[i])) != 0)
+        {
+            log_error(logger, "Failed to create session");
+            free(wfile_path);
+            return 1;
+        }
+        free(wfile_path);
+#else
         if (runtime_core_process_status(api->CreateSession(envs[i], file_path, session_options[i], &sessions[i])) != 0)
         {
             log_error(logger, "Failed to create session");
             return 1;
         }
+#endif
 
         // create allocator
         if (runtime_core_process_status(api->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory_infos[i])) != 0)
