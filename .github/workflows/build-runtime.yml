@@ -101,6 +101,6 @@ jobs:
           }
 
           Write-Host "Uploading $artifactPath to s3://oaax/$targetKey"
-          set AWS_ACCESS_KEY_ID ${{ secrets.S3_ACCESS_KEY }}
-          set AWS_SECRET_ACCESS_KEY ${{ secrets.S3_SECRET_KEY }}
+          $env:AWS_ACCESS_KEY_ID = "${{ secrets.S3_ACCESS_KEY }}"
+          $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.S3_SECRET_KEY }}"
           s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$targetKey"
