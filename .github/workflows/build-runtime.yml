@@ -66,7 +66,7 @@ jobs:
           submodules: 'recursive'
           lfs: true
       - name: Install s3cmd
-        run: pip install s3cmd
+        run: python -m pip install s3cmd
       - name: Configure s3cmd
         shell: pwsh
         run: |
