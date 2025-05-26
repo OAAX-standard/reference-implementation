@@ -89,19 +89,25 @@ jobs:
           $bucket = "oaax"
           $accessKey = "${{ secrets.S3_ACCESS_KEY }}"
           $secretKey = "${{ secrets.S3_SECRET_KEY }}"
+          $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
+          $targetKey = "runtimes/$version/CPU/Windows/x86_64/runtime-library-X86_64-Windows.tar.gz"
 
           # Configure AWS CLI to use custom endpoint
           aws configure set aws_access_key_id $accessKey
           aws configure set aws_secret_access_key $secretKey
           aws configure set default.region us-east-1
 
-          $files = Get-ChildItem -Path runtime-library\artifacts\*.gz
-          foreach ($file in $files) {
-            aws s3 cp `
-              $file.FullName `
-              "s3://$bucket/runtimes/$version/CPU/Windows/x86_64/$($file.Name)" `
-              --endpoint-url $endpoint `
-              --region us-east-1
+          # Validate
+          if (-Not (Test-Path $artifactPath)) {
+            throw "Artifact not found: $artifactPath"
           }
+
+          # Upload
+          Write-Host "Uploading $artifactPath to s3://$bucket/$targetKey"
+          aws s3 cp `
+            $artifactPath `
+            "s3://$bucket/$targetKey" `
+            --endpoint-url $endpoint `
+            --region us-east-1
             
   
