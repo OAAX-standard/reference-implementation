@@ -49,7 +49,7 @@ elseif (PLATFORM STREQUAL "WINDOWS")
   # Use default MSVC toolchain, do not set cross-compilation variables
   set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
-  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
+  # Do not add compiler flags to CMAKE_BUILD_FLAGS to avoid linker warnings
 else()
   message(FATAL_ERROR "Please specify the target platform: X86_64, AARCH64, or WINDOWS. Found ${PLATFORM}")
 endif()
@@ -159,19 +159,23 @@ target_include_directories(RuntimeLibrary PUBLIC
   ${TOOLS_C_UTILITIES_INCLUDE_DIR}
   ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include
   ${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}/include/onnxruntime/core/session
-if (WIN32)
+)
+if(NOT WIN32)
+target_include_directories(RuntimeLibrary PUBLIC
   ${RE2_DIR}/include
   ${CPUINFO_DIR}/include
-endif()
 )
+endif()
 
 # === Link Directories ===
 # Specify library search paths for dependencies
+if(NOT WIN32)
 target_link_directories(RuntimeLibrary PUBLIC
-if (WIN32)
-  "${RE2_DIR}/${GENERIC_BUILD_TARGET}"
-  "${CPUINFO_DIR}/${GENERIC_BUILD_TARGET}"
+    "${RE2_DIR}/${GENERIC_BUILD_TARGET}"
+    "${CPUINFO_DIR}/${GENERIC_BUILD_TARGET}"
+)
 endif()
+target_link_directories(RuntimeLibrary PUBLIC
   "${ONNX_RUNTIME_DIR}/${GENERIC_BUILD_TARGET}"
 )
 
