@@ -8,9 +8,7 @@ on:
 jobs:
   build-runtimes-for-ubuntu:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
-    runs-on: self-hosted
-    container:
-      image: ubuntu:22.04  # or any other image
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
