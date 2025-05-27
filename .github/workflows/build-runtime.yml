@@ -20,8 +20,8 @@ jobs:
 
       - name: Install s3cmd
         run: |
-          apt-get update
-          apt-get install -y s3cmd
+          sudo apt-get update
+          sudo apt-get install -y s3cmd
 
       - name: Configure s3cmd
         run: |
@@ -36,7 +36,7 @@ jobs:
           EOF
 
       - name: Set up environment
-        run: bash scripts/setup-env.sh
+        run: sudo bash scripts/setup-env.sh
 
       - name: Cross-compile runtimes
         run: bash runtime-library/build-runtimes.sh
