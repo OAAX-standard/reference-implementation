@@ -27,14 +27,19 @@ cd ${BUILD_DIR}
 
 for platform in "${PLATFORMS[@]}"; do
   echo ">>>> Building for platform: $platform"
+  # Clean up old build files
   rm -rf *
-  cmake .. -DPLATFORM=$platform
+  # Generate the build files
+  cmake .. -DPLATFORM="$platform"
+  # Make the build
   make -j
   echo "Build complete. The following shared libraries were created:"
   ls ./*.so
+  # Copy the shared libraries to the artifacts directory
   echo "Copying shared libraries to artifacts directory..."
-  mkdir -p ${ARTIFACTS_DIR}/$platform/
-  cp ./*.so ${ARTIFACTS_DIR}/$platform/
-  tar czf ${ARTIFACTS_DIR}/runtime-library-${platform}.tar.gz -C ${ARTIFACTS_DIR}/$platform ./*.so
+  mkdir -p "${ARTIFACTS_DIR}/$platform/"
+  cp ./*.so "${ARTIFACTS_DIR}/$platform/"
+  # Bundle the shared libraries into a tarball
+  tar czf "${ARTIFACTS_DIR}/runtime-library-${platform}.tar.gz" -C "${ARTIFACTS_DIR}/$platform" ./*.so
   echo "Shared libraries for $platform have been copied to ${ARTIFACTS_DIR}/$platform/"
 done

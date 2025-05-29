@@ -5,11 +5,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
-#include "onnx.pb-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include <onnxruntime/core/session/onnxruntime_c_api.h>
 
@@ -42,8 +44,4 @@ char **runtime_core_get_input_names(OrtSession *session, OrtAllocator *allocator
  */
 char **runtime_core_get_output_names(OrtSession *session, OrtAllocator *allocator, int32_t *output_names_count, int32_t **output_data_types);
 
-int64_t runtime_util_get_sizeof_onnx_type(int32_t datatype);
-
-void free_tensors_struct(tensors_struct *tensors);
-
-#endif //RUNTIME_C_RUNTIMES_ORT_CORE_INCLUDE_RUNTIME_RUNTIME_UTILS_H_
+#endif // RUNTIME_C_RUNTIMES_ORT_CORE_INCLUDE_RUNTIME_RUNTIME_UTILS_H_
