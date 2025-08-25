@@ -34,5 +34,5 @@ jobs:
         run: |
             version=${{ github.head_ref }}
             echo "Deleting artifacts for version: ${version}"
-            s3cmd del --recursive "s3://oaax/runtime-library/${version}/CPU/" || echo "Warning: No runtime-library found for version ${version}"
+            s3cmd del --recursive "s3://oaax/runtimes/${version}/CPU/" || echo "Warning: No runtime-library found for version ${version}"
             s3cmd del --recursive "s3://oaax/conversion-toolchain/${version}/CPU/" || echo "Warning: No conversion-toolchain found for version ${version}"
