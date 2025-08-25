@@ -47,8 +47,8 @@ elseif (PLATFORM STREQUAL "WINDOWS")
   set(GENERIC_BUILD_TARGET X86_64_WINDOWS)
   set(CMAKE_SYSTEM_NAME Windows)
   # Use default MSVC toolchain, do not set cross-compilation variables
-  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /MD /D_CRT_SECURE_NO_WARNINGS")
+  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /W3 /MT /D_CRT_SECURE_NO_WARNINGS")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /MT /D_CRT_SECURE_NO_WARNINGS")
   # Do not add compiler flags to CMAKE_BUILD_FLAGS to avoid linker warnings
 else()
   message(FATAL_ERROR "Please specify the target platform: X86_64, AARCH64, or WINDOWS. Found ${PLATFORM}")
