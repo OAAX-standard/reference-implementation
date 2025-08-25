@@ -1,4 +1,6 @@
 name: Build OAAX runtime
+permissions:
+  contents: none
 
 on:
   push:
