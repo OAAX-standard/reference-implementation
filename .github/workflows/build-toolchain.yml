@@ -1,4 +1,6 @@
 name: Build OAAX conversion toolchain
+permissions:
+  contents: none
 
 on:
   push:
