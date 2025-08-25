@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-runtimes-for-ubuntu:
@@ -17,6 +20,12 @@ jobs:
           fetch-depth: 1
           submodules: 'recursive'
           lfs: true
+
+      - name: Set up environment
+        run: sudo bash scripts/setup-env.sh
+
+      - name: Cross-compile runtimes
+        run: bash runtime-library/build-runtimes.sh
 
       - name: Install s3cmd
         run: |
@@ -35,18 +44,16 @@ jobs:
           use_https = True
           EOF
 
-      - name: Set up environment
-        run: sudo bash scripts/setup-env.sh
-
-      - name: Cross-compile runtimes
-        run: bash runtime-library/build-runtimes.sh
-
       - name: Determine version
         run: |
-          if [ -f VERSION ]; then
-            version=$(cat VERSION)
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            if [ -f VERSION ]; then
+              version=$(cat VERSION)
+            else
+              exit 1
+            fi
           else
-            exit 1
+            version=${{ github.head_ref }}
           fi
           echo "version=$version" >> $GITHUB_ENV
 
@@ -74,12 +81,16 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          if (Test-Path VERSION) {
-            $version = Get-Content VERSION
+            if ("${{ github.ref }}" -eq "refs/heads/main") {
+            if (Test-Path VERSION) {
+              $version = Get-Content VERSION
+            } else {
+              throw "VERSION file missing"
+            }
+            } else {
+            $version = "${{ github.head_ref }}"
+            }
             echo "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } else {
-            throw "VERSION file missing"
-          }
       - name: Upload runtimes to Custom S3-Compatible Bucket
         shell: pwsh
         run: |
