@@ -15,6 +15,7 @@ set(TOOLS_C_UTILITIES_INCLUDE_DIR ${DEPS_DIR}/tools/c-utilities/include)
 set(RE2_DIR "${DEPS_DIR}/re2")
 set(ONNX_RUNTIME_DIR "${DEPS_DIR}/onnxruntime")
 set(CPUINFO_DIR "${DEPS_DIR}/cpuinfo")
+set(WINDOWS_RUNTIME_DIR "${DEPS_DIR}/windows-runtime")
 
 
 # === Platform Selection and Toolchain Setup ===
@@ -301,4 +302,15 @@ else()
     cpuinfo re2 pthread dl c_utilities stdc++
     -Wl,--end-group
   )
+endif()
+
+# == Copy Windows runtime libraries == #
+if (MSVC)
+  file(GLOB_RECURSE WIN_RUNTIME_LIBS "${WINDOWS_RUNTIME_DIR}/*")
+  foreach(WIN_RUNTIME_LIB ${WIN_RUNTIME_LIBS})
+    add_custom_command(TARGET RuntimeLibrary POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${WIN_RUNTIME_LIB} $<TARGET_FILE_DIR:RuntimeLibrary>
+    )
+  endforeach()
 endif()

@@ -44,7 +44,7 @@ REM Print message about build completion
 echo Build complete. The following shared libraries were created:
 
 REM List all DLL files in the Release directory (bare format)
-dir /b Release\*.dll
+dir /b Release\*
 
 REM Print message about copying DLLs
 echo Copying shared libraries to artifacts directory...

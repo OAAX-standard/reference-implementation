@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-toolchain:
@@ -25,6 +28,9 @@ jobs:
           apt-get update
           apt-get install -y s3cmd docker.io
 
+      - name: Build conversion toolchain image
+        run: bash conversion-toolchain/build-toolchain.sh
+
       - name: Configure s3cmd
         run: |
           cat > ~/.s3cfg <<EOF
@@ -37,15 +43,16 @@ jobs:
           use_https = True
           EOF
 
-      - name: Build conversion toolchain image
-        run: bash conversion-toolchain/build-toolchain.sh
-
       - name: Determine version
         run: |
-          if [ -f VERSION ]; then
-            version=$(cat VERSION)
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            if [ -f VERSION ]; then
+              version=$(cat VERSION)
+            else
+              exit 1
+            fi
           else
-            exit 1
+            version=${{ github.head_ref }}
           fi
           echo "version=$version" >> $GITHUB_ENV
 
