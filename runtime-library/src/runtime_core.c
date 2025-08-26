@@ -672,7 +672,7 @@ const char *runtime_error_message()
 
 const char *runtime_version()
 {
-    return "1.0.0";
+    return "1.1.1";
 }
 
 const char *runtime_name()
