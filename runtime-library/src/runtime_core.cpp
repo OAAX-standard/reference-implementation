@@ -10,6 +10,10 @@
 #include <thread>
 #include <atomic>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <onnxruntime_cxx_api.h>
 #include "tensors_struct.h"
 #include "concurrentqueue.h"
@@ -109,7 +113,20 @@ extern "C" int runtime_model_loading(const char *model_path)
     logger->info("Loading model from: {}", model_path);
     try
     {
+#ifdef _WIN32
+        // On Windows the Ort::Session constructor expects a wide (UTF-16) string
+        int size_needed = MultiByteToWideChar(CP_UTF8, 0, model_path, -1, NULL, 0);
+        if (size_needed <= 0)
+        {
+            logger->error("Failed to convert model path to wide string.");
+            return -1;
+        }
+        std::wstring wpath(size_needed, 0);
+        MultiByteToWideChar(CP_UTF8, 0, model_path, -1, &wpath[0], size_needed);
+        session = std::make_unique<Ort::Session>(*env, wpath.c_str(), *session_options);
+#else
         session = std::make_unique<Ort::Session>(*env, model_path, *session_options);
+#endif
         logger->debug("Model loaded successfully from: {}", model_path);
         output_names = get_output_names(*session);
         logger->trace("Output names retrieved successfully");
