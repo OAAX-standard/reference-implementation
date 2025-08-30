@@ -4,9 +4,15 @@ cd "$(dirname "$0")"
 
 BUILD_DIR="$(pwd)/build"
 ARTIFACTS_DIR="$(pwd)/artifacts"
+ROOT_DIR="$(pwd)/.."
 mkdir -p $BUILD_DIR
 rm -rf $ARTIFACTS_DIR
 mkdir -p $ARTIFACTS_DIR
+
+VERSION_FILE="$ROOT_DIR/VERSION"
+RUNTIME_VERSION="$(cat $VERSION_FILE)"
+
+echo "Building for runtime version: $RUNTIME_VERSION"
 
 # read platform from command line argument
 if [ "$#" -ne 1 ]; then
@@ -30,7 +36,7 @@ for platform in "${PLATFORMS[@]}"; do
   # Clean up old build files
   rm -rf *
   # Generate the build files
-  cmake .. -DPLATFORM="$platform"
+  cmake .. -DPLATFORM="$platform" -DCMAKE_BUILD_TYPE=Release -DRUNTIME_VERSION="$RUNTIME_VERSION"
   # Make the build
   make -j
   echo "Build complete. The following shared libraries were created:"
