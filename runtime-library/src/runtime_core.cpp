@@ -87,7 +87,7 @@ extern "C" int runtime_initialization()
         // Init logger
         logger = initialize_logger(log_file, log_level, log_level, runtime_name());
         logger->info("Initializing the runtime");
-        env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_FATAL, runtime_name());
+        env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, runtime_name());
         logger->trace("ORT logging initialized");
         session_options = std::make_unique<Ort::SessionOptions>();
         session_options->SetIntraOpNumThreads(num_threads);
