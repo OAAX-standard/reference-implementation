@@ -42,7 +42,7 @@ static std::atomic<bool> stop_inference_thread{false};
 // Logger
 std::shared_ptr<spdlog::logger> logger;
 // Runtime arguments
-static int log_level = spdlog::level::trace; // Possible values: spdlog::level::trace, debug, info, warn, err, critical, off
+static int log_level = spdlog::level::info; // Possible values: spdlog::level::trace, debug, info, warn, err, critical, off
 static string log_file = "runtime.log";
 static int num_threads = 4;
 
