@@ -112,6 +112,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS " ")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS " ")
 
+# Add common warning and optimization flags for C and C++ (moved below project() so compiler detection is available)
+project(RuntimeLibrary)
+
 # Add common warning and optimization flags for C and C++
 if(NOT MSVC)
   set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fno-common -Wall -Wextra -Wformat -Wformat-security")
@@ -122,8 +125,6 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include -fexceptions ")
   set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
 endif()
-
-project(RuntimeLibrary)
 
 # === Generic Build Settings ===
 # Set basic C, C++, and linker flags
