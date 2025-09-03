@@ -63,6 +63,10 @@ jobs:
         run: |
           s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/x86_64/Ubuntu/library.tar.gz"
           s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/aarch64/Ubuntu/library.tar.gz"
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/latest/CPU/x86_64/Ubuntu/library.tar.gz"
+            s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/latest/CPU/aarch64/Ubuntu/library.tar.gz"
+          fi
 
   build-runtimes-for-windows-x86_64:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
@@ -99,6 +103,7 @@ jobs:
           $version = $env:version
           $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
           $targetKey = "runtimes/$version/CPU/x86_64/Windows/library.tar.gz"
+          $latestTargetKey = "runtimes/latest/CPU/x86_64/Windows/library.tar.gz"
 
           $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
           $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
@@ -118,3 +123,6 @@ jobs:
           $env:AWS_ACCESS_KEY_ID = "${{ secrets.S3_ACCESS_KEY }}"
           $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.S3_SECRET_KEY }}"
           s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$targetKey"
+          if ("${{ github.ref }}" -eq "refs/heads/main") {
+            s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$latestTargetKey"
+          }

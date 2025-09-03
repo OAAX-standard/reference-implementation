@@ -13,10 +13,7 @@ on:
 jobs:
   build-toolchain:
     timeout-minutes: 10  # Set a timeout of 10 minutes for the job
-    runs-on: self-hosted
-    container:
-      image: ubuntu:22.04  # or any other image
-      options: --volume /var/run/docker.sock:/var/run/docker.sock
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -61,3 +58,6 @@ jobs:
       - name: Upload Docker image to S3
         run: |
           s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/${{ env.version }}/CPU/oaax-cpu-toolchain.tar"
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/latest/CPU/oaax-cpu-toolchain.tar"
+          fi
