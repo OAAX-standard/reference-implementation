@@ -124,11 +124,6 @@ if(NOT MSVC)
   set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
   set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include -fexceptions ")
   set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
-  # Prevent executable stack requirement
-  add_compile_options(-Wa,--noexecstack)
-
-  # Safety: enforce at link time too
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack")
 endif()
 
 # === Generic Build Settings ===
@@ -159,6 +154,10 @@ file(GLOB_RECURSE SRC
 # === Library Target ===
 # Create the shared library target for the runtime
 add_library(RuntimeLibrary SHARED ${SRC})
+
+if(NOT MSVC)
+  target_link_options(RuntimeLibrary PRIVATE "-Wl,-z,noexecstack")
+endif()
 
 # Add optimization and debug flags for Release builds
 if(MSVC)
