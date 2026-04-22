@@ -86,7 +86,7 @@ def _build_fixture(model_list: list) -> dict:
     """Download and simplify each model in model_list. Returns {model_name: Path}."""
     if not _docker_image_available():
         pytest.skip(
-            f"Docker image '{DOCKER_IMAGE}' not available. " f"Build with: bash conversion-toolchain/build-toolchain.sh"
+            f"Docker image '{DOCKER_IMAGE}' not available. Build with: bash conversion-toolchain/build-toolchain.sh"
         )
 
     try:
