@@ -63,27 +63,27 @@ ONNX Model → [Conversion Toolchain] → Optimized ONNX → [Runtime Library] �
 - `runtime_core.cpp`: Implements the 9-function C API; manages the ONNX Runtime session, a single inference thread, and two lock-free queues (input/output) via `moodycamel::ConcurrentQueue`
 - `runtime_utils.cpp`: Type mapping between the internal `tensor_data_type` enum and ONNX element types; spdlog initialization
 
-### C API (`runtime-library/include/runtime_core.hpp`)
+### C API (`runtime-library/include/oaax_runtime.h`)
 
 ```c
-int runtime_initialization_with_args(int length, char **keys, void **values);
-int runtime_initialization();
-int runtime_model_loading(const char *model_path);
-int send_input(tensors_struct *input_tensors);
-int receive_output(tensors_struct **output_tensors);
-int runtime_destruction();
-const char *runtime_error_message();
-const char *runtime_version();
-const char *runtime_name();
+RuntimeStatus runtime_init(Config config);
+RuntimeStatus runtime_load_models(int num_models, const ModelConfig *model_configs);
+RuntimeStatus runtime_enqueue_input(int model_id, Tensors *input_tensors);
+RuntimeStatus runtime_retrieve_output(int *model_id, Tensors **output_tensors, int timeout_ms);
+RuntimeStatus runtime_cleanup(void);
+const char *runtime_get_error(void);
+const char *runtime_get_version(void);
+const char *runtime_get_name(void);
+const char *runtime_get_info(void);
 ```
 
-Supported init args: `log_level`, `log_file`, `number_of_threads`.
+`Config` is a `{length, keys[], values[]}` key-value struct. Supported init keys: `log_level`, `log_file`, `number_of_threads`. `ModelConfig` carries `file_path`, optional `model_data`/`model_size` for in-memory load, and a per-model `Config`.
 
 ### Threading Model
 
-- `runtime_initialization*()` spawns one inference thread.
-- `send_input()` enqueues; the inference thread dequeues, runs the session, and enqueues results.
-- `receive_output()` dequeues results (blocking spin-wait).
+- `runtime_init()` spawns one inference thread per loaded model.
+- `runtime_enqueue_input()` pushes to a lock-free queue; the worker dequeues, runs the ONNX Runtime session, and pushes output.
+- `runtime_retrieve_output()` pops output (blocking with `timeout_ms`; pass `timeout_ms=1` to poll non-blocking).
 
 ### Cross-Compilation
 
@@ -101,6 +101,65 @@ Pre-built third-party libraries (ONNX Runtime 1.16.3/1.21.1, RE2, cpuinfo) live 
 - `delete-temporary-artifacts.yml`: S3 cleanup for old PR artifacts.
 
 Main branch artifacts go to `s3://oaax/runtimes/latest/` and a versioned path; PR builds go to the versioned path only.
+
+## Testing
+
+### Python test environment
+
+Uses `uv` with the `integration` extra. Run once after cloning:
+
+```bash
+git submodule update --init --recursive   # required for runtime deps
+uv sync --extra integration
+```
+
+> **Known issue — onnxsim PyPI sdist has broken metadata for v0.5.0+.** `uv sync` will fail to build `onnxsim` from source. Install the pre-built wheel manually:
+> ```bash
+> pip3 download onnxsim --no-deps -d /tmp/onnxsim-whl
+> uv pip install /tmp/onnxsim-whl/onnxsim-*.whl
+> ```
+> Then install the conversion toolchain package:
+> ```bash
+> uv pip install -e conversion-toolchain/
+> ```
+
+### Running Python tests
+
+```bash
+uv run pytest tests/test_conversion.py -v    # toolchain unit tests (onnxsim, logger, utils)
+uv run pytest tests/test_docker.py -v        # Docker E2E tests (requires oaax-cpu-toolchain:latest)
+uv run pytest tests/test_yolo_integration.py -v  # YOLO simplification + inference (uses Docker)
+```
+
+**Stage 1** (conversion + full YOLO model matrix):
+```bash
+uv run python tests/stage1.py
+```
+
+### C++ runtime tests
+
+```bash
+bash runtime-library/build-runtimes.sh X86_64   # build the runtime first
+bash tests/runtime/build-tests.sh               # builds simple_test, yolo_test, multi_model_test
+```
+
+```bash
+# from tests/runtime/build/
+LD_LIBRARY_PATH=. ./simple_test                          # API health checks (no model needed)
+LD_LIBRARY_PATH=. ./simple_test <model.onnx>             # also tests load + empty-queue path
+LD_LIBRARY_PATH=. ./yolo_test <model.onnx> [--runs N] [--warmup N] [--batch N] [--imgsz N]
+LD_LIBRARY_PATH=. ./multi_model_test <model0.onnx> <model1.onnx>
+```
+
+### Stage 2 benchmark
+
+Runs `simple_test` + `yolo_test` across all simplified models and optionally writes a CSV:
+
+```bash
+uv run python tests/stage2.py --runs 300 --warmup 10 --csv results.csv
+```
+
+Requires `tests/test_models/simplified/` to be populated by Stage 1 first.
 
 ## Git Workflow
 
