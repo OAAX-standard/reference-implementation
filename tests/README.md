@@ -116,6 +116,27 @@ Runs a configurable number of inference passes through the async queue using ded
 ./yolo_test <model.onnx> [--runs N] [--warmup N] [--batch N] [--imgsz N] [--in-flight N]
 ```
 
+### `lifecycle_test` — Runtime lifecycle correctness
+
+Verifies that the runtime can be torn down and re-initialized an arbitrary number of times without state corruption. Tests that do not require a model:
+
+1. `API guards before init` — all functions return `NOT_INITIALIZED` before the first `runtime_init()`
+2. `Init/cleanup cycle × 5` — repeated init + double-init-rejected + cleanup + idempotent-cleanup
+3. `State clean after cleanup` — `get_info()` returns null, `get_error()` returns null
+4. `Error cleared by cleanup` — error set by a failed load is gone after cleanup and stays absent after clean reinit
+5. `Enqueue/retrieve after cleanup` — both return `NOT_INITIALIZED`
+
+With an `.onnx` path as argument, also tests:
+
+6. `Full cycle × 3` — init/load/cleanup repeated with the same model each time
+7. `get_info loaded_models count` — reports 0 before load, 1 after load, null after cleanup
+8. `Double load rejected` — second `runtime_load_models` without cleanup returns `ALREADY_INITIALIZED`
+9. `Inference round-trip on cycle 2` — enqueue + retrieve works correctly after a full teardown/reinit
+
+```
+./lifecycle_test [model.onnx]
+```
+
 ### `multi_model_test` — Concurrent multi-model inference
 
 Loads two models simultaneously and uses concurrent producer threads to enqueue inputs to both. Verifies:
