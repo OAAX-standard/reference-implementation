@@ -1,12 +1,12 @@
-from typing import List
 import datetime
 import json
 import os
+from typing import List
+
 
 class Message:
-
     def __init__(self):
-        self.message: str = ''
+        self.message: str = ""
         self.data: dict = {}
 
     def to_dict(self):
@@ -15,9 +15,9 @@ class Message:
         Returns:
             dict: Message as a dictionary
         """
-        log = {'Message': self.message}
+        log = {"Message": self.message}
         if self.data:
-            log['Data'] = self.data
+            log["Data"] = self.data
         return log
 
     def __str__(self):
@@ -26,7 +26,6 @@ class Message:
 
 
 class Logs:
-
     def __init__(self):
         self.messages: List[Message] = []
 
@@ -51,8 +50,8 @@ class Logs:
         """
         try:
             self.messages[-1].data.update(data)
-        except:
-            self.add_message('<Empty Message>', data)
+        except Exception:
+            self.add_message("<Empty Message>", data)
 
     def save_as_json(self, path: str = None):
         """Save the logs as a JSON file.
@@ -64,8 +63,8 @@ class Logs:
             str: Path to the saved JSON file
         """
         if path is None:
-            path = os.path.join('/', 'tmp', str(datetime.datetime.now()) + '.json')
-        with open(path, 'w') as f:
+            path = os.path.join("/", "tmp", str(datetime.datetime.now()) + ".json")
+        with open(path, "w") as f:
             f.write(str(self))
         return path
 
