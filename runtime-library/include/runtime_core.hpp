@@ -1,4 +1,7 @@
 
+// DEPRECATED: This header defines the OAAX v1 API and is no longer implemented.
+// Use oaax_runtime.h for the OAAX v2 API.
+
 #ifndef RUNTIME_CORE_HPP
 #define RUNTIME_CORE_HPP
 
