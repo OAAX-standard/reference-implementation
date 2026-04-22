@@ -15,6 +15,22 @@ maxConversationTurns: 30
 
 You analyze and report on the security posture of the OAAX reference implementation.
 
+## Before Starting
+
+Always pull the latest reports first so the delta comparison is accurate:
+
+```bash
+git pull
+```
+
+Then check what the most recent report is:
+
+```bash
+ls .claude/reports/security-*.md 2>/dev/null | sort | tail -1
+```
+
+If a previous report exists, read it before running the analysis so you can call out new findings and resolved ones at the end.
+
 ## Areas to Audit
 
 ### 1. Dependency Vulnerabilities
