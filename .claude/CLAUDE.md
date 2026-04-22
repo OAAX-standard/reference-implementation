@@ -106,7 +106,7 @@ Main branch artifacts go to `s3://oaax/runtimes/latest/` and a versioned path; P
 
 - **Commit** freely after every logical set of changes — no need to ask.
 - **Push** the current branch freely at any time.
-- **PRs**: notify Ayoub before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures. Always add `ayoubassis` as reviewer.
+- **PRs**: notify Ayoub before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures. Always add `ayoubassis` as assignee (`--assignee ayoubassis`) — reviewer assignment is blocked by GitHub when the PR author and reviewer are the same account.
 - **Merging** is Ayoub's responsibility; never merge a PR.
 
 ## Maintenance Workflows

@@ -24,7 +24,7 @@ Before creating the PR, verify:
 Always notify Ayoub before creating the PR and wait for confirmation. Then:
 
 ```bash
-gh pr create --title "<type>: <description>" --reviewer ayoubassis --body "$(cat <<'EOF'
+gh pr create --title "<type>: <description>" --assignee ayoubassis --body "$(cat <<'EOF'
 ## Summary
 - <bullet>
 
