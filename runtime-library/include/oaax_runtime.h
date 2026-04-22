@@ -93,14 +93,48 @@ typedef struct ModelConfig {
     Config config;
 } ModelConfig;
 
+/*
+ * Expected call sequence:
+ *   runtime_init() -> runtime_load_models() -> {runtime_enqueue_input() / runtime_retrieve_output()} ->
+ * runtime_cleanup()
+ *
+ * On any non-SUCCESS return, call runtime_get_error() for a human-readable description.
+ */
+
+/* Initialize the runtime with the given configuration.
+ * Must be called before any other function.
+ * Config keys: "log_level" (int 0-6), "log_file" (path), "num_threads" (int 1-16). */
 OAAX_EXPORT RuntimeStatus runtime_init(Config config);
+
+/* Load one or more ONNX models and start their inference worker threads.
+ * Each ModelConfig may specify a file_path or in-memory model_data/model_size.
+ * model_id values are assigned 0..num_models-1 in order. */
 OAAX_EXPORT RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_configs);
+
+/* Submit an input tensor batch to the specified model's async queue.
+ * The runtime takes ownership of input_tensors and will free it after inference. */
 OAAX_EXPORT RuntimeStatus runtime_enqueue_input(int model_id, Tensors* input_tensors);
+
+/* Dequeue one inference result.
+ * timeout_ms < 0: block indefinitely; 0: non-blocking; >0: wait up to N ms.
+ * Returns RUNTIME_STATUS_NO_OUTPUT_AVAILABLE if no result is ready within the timeout.
+ * The caller is responsible for freeing *output_tensors. */
 OAAX_EXPORT RuntimeStatus runtime_retrieve_output(int* model_id, Tensors** output_tensors, int timeout_ms);
+
+/* Stop all worker threads and release all resources. Idempotent. */
 OAAX_EXPORT RuntimeStatus runtime_cleanup(void);
+
+/* Return the last error string, or NULL if no error has occurred. */
 OAAX_EXPORT const char* runtime_get_error(void);
+
+/* Return the runtime version string (matches the VERSION file). */
 OAAX_EXPORT const char* runtime_get_version(void);
+
+/* Return the runtime name string (e.g. "OAAX CPU Runtime"). */
 OAAX_EXPORT const char* runtime_get_name(void);
+
+/* Return a JSON string with runtime diagnostics: loaded_models, requests_in_flight, backend_version.
+ * Returns NULL if the runtime is not initialized. */
 OAAX_EXPORT const char* runtime_get_info(void);
 
 #ifdef __cplusplus
