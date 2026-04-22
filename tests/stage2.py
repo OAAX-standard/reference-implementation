@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Stage 2: Benchmark the OAAX CPU runtime using simplified models from Stage 1.
+"""Stage 2: Benchmark the OAAX CPU runtime vs. ONNX Runtime (Python API).
 
 Requires tests/test_models/simplified/ to be populated by stage1 first.
-Runs yolo_test across all simplified YOLO models and reports latency/throughput.
+Runs yolo_test (OAAX) and onnxruntime.InferenceSession (ORT) for each model,
+then prints a side-by-side comparison with a speedup ratio.
 
 Usage:
-    python tests/stage2.py [--runs 300] [--warmup 5] [--csv results.csv] [--skip-runtime]
+    python tests/stage2.py [--runs 300] [--warmup 5] [--csv results.csv]
+                           [--skip-runtime] [--skip-ort]
 """
 
 import argparse
@@ -16,8 +18,12 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+import numpy as np
+import onnxruntime as ort
 
 ROOT = Path(__file__).parent.parent
 SIMPLIFIED_DIR = ROOT / "tests" / "test_models" / "simplified"
@@ -44,10 +50,11 @@ def header(title: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--runs", type=int, default=300, help="yolo_test inference runs (default: 300)")
-    p.add_argument("--warmup", type=int, default=5, help="yolo_test warmup runs (default: 5)")
+    p.add_argument("--runs", type=int, default=300, help="Inference runs per model (default: 300)")
+    p.add_argument("--warmup", type=int, default=5, help="Warmup runs (default: 5)")
     p.add_argument("--csv", default="", help="Path to output CSV file")
-    p.add_argument("--skip-runtime", action="store_true", help="Skip yolo_test section")
+    p.add_argument("--skip-runtime", action="store_true", help="Skip OAAX yolo_test section")
+    p.add_argument("--skip-ort", action="store_true", help="Skip ORT Python baseline section")
     return p.parse_args()
 
 
@@ -70,7 +77,6 @@ def simple_test_path() -> Path:
 
 
 def build_runtime_tests() -> bool:
-    """Build yolo_test and simple_test. Returns True on success."""
     cmake = os.environ.get("CMAKE_BIN", shutil.which("cmake") or "cmake")
     runtime_lib_dir = str(RUNTIME_BUILD_DIR / "Release") if IS_WINDOWS else str(RUNTIME_BUILD_DIR)
 
@@ -108,7 +114,6 @@ def build_runtime_tests() -> bool:
 
 
 def get_simplified_models() -> list:
-    """Return list of (onnx_path, model_name) for all known YOLO simplified models."""
     return [
         (p, p.stem.replace("-simplified", ""))
         for p in sorted(SIMPLIFIED_DIR.glob("*-simplified.onnx"))
@@ -116,7 +121,7 @@ def get_simplified_models() -> list:
     ]
 
 
-# ── Output parsing ─────────────────────────────────────────────────────────────
+# ── OAAX yolo_test benchmark ──────────────────────────────────────────────────
 
 
 def parse_field(text: str, pattern: str) -> str:
@@ -136,7 +141,6 @@ def run_process(cmd: list, cwd=None, env=None, timeout: int = 120) -> str | None
 
 
 def run_simple_test() -> bool:
-    """Run simple_test (no model) to verify basic runtime health. Returns True on pass."""
     binary = simple_test_path()
     if not binary.exists():
         print(f"  simple_test not found at {binary}")
@@ -182,29 +186,77 @@ def run_yolo_test(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz
     return result
 
 
+# ── ORT Python baseline benchmark ─────────────────────────────────────────────
+
+
+def run_ort_benchmark(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz: int = 640) -> tuple | None:
+    try:
+        sess_opts = ort.SessionOptions()
+        sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        sess = ort.InferenceSession(str(onnx_path), sess_options=sess_opts, providers=["CPUExecutionProvider"])
+
+        inp_name = sess.get_inputs()[0].name
+        data = np.random.rand(batch, 3, imgsz, imgsz).astype(np.float32)
+        feed = {inp_name: data}
+
+        for _ in range(warmup):
+            sess.run(None, feed)
+
+        latencies_ms = []
+        for _ in range(runs):
+            t0 = time.perf_counter()
+            sess.run(None, feed)
+            latencies_ms.append((time.perf_counter() - t0) * 1000.0)
+
+        latencies_ms.sort()
+        avg = sum(latencies_ms) / len(latencies_ms)
+        min_l = latencies_ms[0]
+        p95 = latencies_ms[int(len(latencies_ms) * 0.95)]
+        fps = batch * 1000.0 / avg
+
+        return (f"{avg:.3f}", f"{min_l:.3f}", f"{p95:.3f}", f"{fps:.4f}")
+    except Exception as e:
+        print(f"  [ORT error] {e}")
+        return None
+
+
 # ── Formatting ────────────────────────────────────────────────────────────────
 
-_HDR = "  {:<20}  {:>9}  {:>9}  {:>9}  {:>12}"
-_ROW = "  {:<20}  {:>8}ms  {:>8}ms  {:>8}ms  {:>10} FPS"
+_HDR = "  {:<20}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
+_SEP = "  {:<20}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
+_ROW = "  {:<20}  {:>8}ms  {:>8}ms  {:>8} FPS  {:>8}ms  {:>8}ms  {:>8} FPS  {:>7}x"
 
 
 def print_table_header() -> None:
-    print(_HDR.format("Model", "avg_ms", "min_ms", "p95_ms", "Throughput"))
-    print(_HDR.format("-" * 20, "-" * 9, "-" * 9, "-" * 9, "-" * 12))
+    print(_HDR.format("Model", "OAAX avg", "OAAX p95", "OAAX FPS", "ORT avg", "ORT p95", "ORT FPS", "speedup"))
+    print(_SEP.format("-" * 20, "-" * 9, "-" * 9, "-" * 10, "-" * 9, "-" * 9, "-" * 10, "-" * 8))
 
 
-def write_csv_row(writer, model: str, r: tuple) -> None:
-    if writer:
-        writer.writerow(
-            {
-                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "model": model,
-                "avg_ms": r[0],
-                "min_ms": r[1],
-                "p95_ms": r[2],
-                "throughput_fps": r[3],
-            }
-        )
+def speedup_str(oaax_avg: str, ort_avg: str) -> str:
+    try:
+        ratio = float(ort_avg) / float(oaax_avg)
+        return f"{ratio:.2f}"
+    except (ValueError, ZeroDivisionError):
+        return "n/a"
+
+
+def write_csv_row(writer, model: str, oaax: tuple | None, ort_r: tuple | None) -> None:
+    if not writer:
+        return
+    row = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "model": model,
+        "oaax_avg_ms": oaax[0] if oaax else "",
+        "oaax_min_ms": oaax[1] if oaax else "",
+        "oaax_p95_ms": oaax[2] if oaax else "",
+        "oaax_fps": oaax[3] if oaax else "",
+        "ort_avg_ms": ort_r[0] if ort_r else "",
+        "ort_min_ms": ort_r[1] if ort_r else "",
+        "ort_p95_ms": ort_r[2] if ort_r else "",
+        "ort_fps": ort_r[3] if ort_r else "",
+        "speedup": speedup_str(oaax[0], ort_r[0]) if (oaax and ort_r) else "",
+    }
+    writer.writerow(row)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -228,46 +280,68 @@ def main() -> None:
         csv_file = open(args.csv, "w", newline="")
         csv_writer = csv.DictWriter(
             csv_file,
-            fieldnames=["timestamp", "model", "avg_ms", "min_ms", "p95_ms", "throughput_fps"],
+            fieldnames=[
+                "timestamp",
+                "model",
+                "oaax_avg_ms",
+                "oaax_min_ms",
+                "oaax_p95_ms",
+                "oaax_fps",
+                "ort_avg_ms",
+                "ort_min_ms",
+                "ort_p95_ms",
+                "ort_fps",
+                "speedup",
+            ],
         )
         csv_writer.writeheader()
 
     try:
-        if args.skip_runtime:
-            return
+        if not args.skip_runtime:
+            if not yolo_test_path().exists():
+                print(f"  yolo_test not found at {yolo_test_path()}, building...")
+                if not build_runtime_tests():
+                    print("  Build failed — aborting")
+                    sys.exit(1)
 
-        if not yolo_test_path().exists():
-            print(f"  yolo_test not found at {yolo_test_path()}, building...")
-            if not build_runtime_tests():
-                print("  Build failed — aborting")
-                sys.exit(1)
+            header("Step 1: simple_test (API health check)")
+            run_simple_test()
 
-        # Basic smoke test first
-        header("Step 1: simple_test (API health check)")
-        run_simple_test()
-
-        # Benchmark all models
-        header(f"Step 2: yolo_test  (warmup={args.warmup}, runs={args.runs})")
+        header(f"Step 2: OAAX vs ORT  (warmup={args.warmup}, runs={args.runs})")
+        print(f"  ORT version: {ort.__version__}")
         print_table_header()
 
         pass_count = fail_count = 0
         for onnx_path, model_name in models:
             batch = 4 if model_name.endswith("_b4") else 1
             imgsz = 320 if "_320" in model_name else 640
-            r = run_yolo_test(onnx_path, args.warmup, args.runs, batch=batch, imgsz=imgsz)
-            if r:
-                print(_ROW.format(model_name, *r))
-                write_csv_row(csv_writer, model_name, r)
+
+            oaax_r = None if args.skip_runtime else run_yolo_test(onnx_path, args.warmup, args.runs, batch, imgsz)
+            ort_r = None if args.skip_ort else run_ort_benchmark(onnx_path, args.warmup, args.runs, batch, imgsz)
+
+            oaax_avg = oaax_r[0] if oaax_r else "n/a"
+            oaax_p95 = oaax_r[2] if oaax_r else "n/a"
+            oaax_fps = oaax_r[3] if oaax_r else "n/a"
+            ort_avg = ort_r[0] if ort_r else "n/a"
+            ort_p95 = ort_r[2] if ort_r else "n/a"
+            ort_fps = ort_r[3] if ort_r else "n/a"
+            spd = speedup_str(oaax_r[0], ort_r[0]) if (oaax_r and ort_r) else "n/a"
+
+            print(_ROW.format(model_name, oaax_avg, oaax_p95, oaax_fps, ort_avg, ort_p95, ort_fps, spd))
+            write_csv_row(csv_writer, model_name, oaax_r, ort_r)
+
+            if oaax_r or ort_r:
                 pass_count += 1
             else:
-                print(f"  {model_name:<20}  FAILED")
                 fail_count += 1
 
         header("Stage 2 results")
         if args.csv:
             print(f"  CSV saved to: {args.csv}")
-        print(f"  Runtime tests passed: {pass_count}")
-        print(f"  Runtime tests failed: {fail_count}")
+        print(f"  Models benchmarked: {pass_count}")
+        print(f"  Models failed:      {fail_count}")
+        print()
+        print("  speedup > 1.0x means OAAX is faster than ORT")
 
         if fail_count > 0:
             sys.exit(1)
