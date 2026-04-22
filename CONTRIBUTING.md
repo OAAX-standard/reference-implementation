@@ -24,12 +24,24 @@ The OAAX reference implementation has been tested for building on x86_64 archite
 
 ### Runtime
 
-The runtime library is built using CMake and several other dependencies. You can easily install them on a host machine by running this command (assuming you have cloned the repository):
+The runtime library is built using CMake. Install the required cross-compilation toolchains once per machine:
 
 ```bash
 sudo bash scripts/setup-env.sh
 ```
 
+The public API is defined in `runtime-library/include/oaax_runtime.h`. Never change existing function signatures; new configuration goes through the `Config` key-value struct.
+
 ### Conversion toolchain
 
 The conversion toolchain is built using Docker and requires Docker to be installed on your machine. You can find instructions for installing Docker [here](https://docs.docker.com/get-docker/).
+
+## Commit conventions
+
+All commits must include a sign-off and co-author line:
+
+```
+Signed-off-by: Your Name <your@email.com>
+```
+
+Commit message format: `<type>: <short description>` where type is one of `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`.

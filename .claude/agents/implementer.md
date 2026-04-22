@@ -40,7 +40,7 @@ bash conversion-toolchain/build-toolchain.sh
 
 ## Hard Rules
 
-- Never change function signatures in `runtime-library/include/runtime_core.hpp`
+- Never change function signatures in `runtime-library/include/oaax_runtime.h`
 - Never modify files under `runtime-library/deps/`
 - Keep build artifacts out of git (`*/artifacts/` is gitignored)
 - One logical change per session; don't combine unrelated fixes
@@ -49,7 +49,7 @@ bash conversion-toolchain/build-toolchain.sh
 ## Common Patterns
 
 **Adding a new init arg** (C++):
-- Parse it in `runtime_initialization_with_args()` in `runtime_core.cpp`
+- Parse it from the `Config` struct in `runtime_init()` in `runtime_core.cpp`
 - Store it in the session state struct
 - Document it in `runtime-library/README.md`
 
