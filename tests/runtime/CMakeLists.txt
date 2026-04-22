@@ -18,14 +18,16 @@ endif()
 message(STATUS "Runtime include dir: ${RUNTIME_INCLUDE_DIR}")
 message(STATUS "Runtime lib dir:     ${RUNTIME_LIB_DIR}")
 
-add_executable(simple_test simple_test.cpp)
-target_include_directories(simple_test PRIVATE ${RUNTIME_INCLUDE_DIR})
-target_link_directories(simple_test PRIVATE ${RUNTIME_LIB_DIR})
-target_link_libraries(simple_test PRIVATE RuntimeLibrary)
-if(NOT MSVC)
-    target_link_options(simple_test PRIVATE "-Wl,--allow-shlib-undefined")
-endif()
-set_target_properties(simple_test PROPERTIES
-    BUILD_RPATH "$ORIGIN"
-    INSTALL_RPATH "$ORIGIN"
-)
+foreach(TEST_NAME simple_test yolo_test multi_model_test)
+    add_executable(${TEST_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME}.cpp)
+    target_include_directories(${TEST_NAME} PRIVATE ${RUNTIME_INCLUDE_DIR})
+    target_link_directories(${TEST_NAME} PRIVATE ${RUNTIME_LIB_DIR})
+    target_link_libraries(${TEST_NAME} PRIVATE RuntimeLibrary)
+    if(NOT MSVC)
+        target_link_options(${TEST_NAME} PRIVATE "-Wl,--allow-shlib-undefined")
+    endif()
+    set_target_properties(${TEST_NAME} PROPERTIES
+        BUILD_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN"
+    )
+endforeach()
