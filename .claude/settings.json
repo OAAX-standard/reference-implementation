@@ -1,0 +1,20 @@
+{
+  "model": "sonnet",
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(ls*)",
+      "Bash(cmake --version)",
+      "Bash(which *)",
+      "Bash(docker --version)",
+      "Bash(gcc --version)",
+      "Bash(g++ --version)"
+    ]
+  }
+}
