@@ -19,6 +19,6 @@ COPY setup.py /app/setup.py
 COPY conversion_toolchain /app/conversion_toolchain
 COPY scripts/ /app/scripts
 
-RUN uv pip install --system --no-cache --prefer-binary -r requirements.txt
+RUN uv pip install --system --no-cache --only-binary onnxsim -r requirements.txt
 
 ENTRYPOINT ["bash", "/app/scripts/convert.sh"]
