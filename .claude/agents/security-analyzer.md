@@ -72,8 +72,38 @@ gh api repos/OAAX-standard/reference-implementation/dependabot/alerts \
   | head -50
 ```
 
+### 6. Personal Data & Sensitive Information
+
+Scan the entire repository (excluding `runtime-library/deps/` and binary files) for:
+
+- **Email addresses** — especially personal or corporate emails hardcoded in source, configs, or docs
+- **Names / usernames** tied to real individuals in places they shouldn't be (e.g., hardcoded author strings, debug prints, config files)
+- **API keys, tokens, passwords** — any string matching common patterns (`sk-`, `ghp_`, `AKIA`, `Bearer `, etc.)
+- **Internal URLs or hostnames** — private infrastructure that shouldn't be public
+- **IP addresses** — internal network ranges (10.x, 192.168.x, 172.16–31.x)
+- **Private file paths** — absolute paths like `/home/<username>/` leaking local machine info
+
+```bash
+# Emails
+grep -rn --include="*.py" --include="*.cpp" --include="*.hpp" \
+  --include="*.md" --include="*.yml" --include="*.json" --include="*.sh" \
+  -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" . \
+  --exclude-dir=deps --exclude-dir=.git
+
+# Secrets patterns
+grep -rn --exclude-dir=deps --exclude-dir=.git \
+  -E "(sk-|ghp_|ghs_|AKIA|AIza|Bearer [a-zA-Z0-9])" .
+
+# Internal paths
+grep -rn --exclude-dir=deps --exclude-dir=.git \
+  -E "/home/[a-zA-Z0-9_]+" .
+```
+
+Report each finding with file, line, and whether it's a false positive risk or a genuine exposure. Err on the side of flagging — the developer can decide what's acceptable.
+
 ## Rules
 
 - Never suggest disabling security checks as a fix
 - Prioritize fixes that don't require changing the pre-compiled deps (those require coordinated platform rebuilds)
 - Flag EOL runtimes/images as high severity — they receive no security patches
+- For personal data findings: flag as **High** if in tracked source files, **Medium** if only in docs/comments

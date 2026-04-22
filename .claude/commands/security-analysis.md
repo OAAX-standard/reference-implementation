@@ -13,6 +13,7 @@ The agent will check:
 3. Python input validation in the conversion toolchain
 4. CI/CD secret handling and GitHub Actions security
 5. Docker image hygiene
+6. Personal data and sensitive information (emails, tokens, internal paths, IP addresses) that shouldn't be in the repository
 
 Findings are reported by severity (Critical → High → Medium → Low) with specific file locations and fix recommendations.
 
