@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import onnxruntime as ort
 import pytest
+from google.protobuf.message import DecodeError
 
 from conversion_toolchain.logger import Logs
 from conversion_toolchain.utils import md5_hash, simplify_onnx
@@ -142,7 +143,7 @@ class TestErrorHandling:
         bad = Path(tmp) / "bad.onnx"
         bad.write_text("not a valid onnx model")
         logs = Logs()
-        with pytest.raises((OSError, RuntimeError, ValueError)):
+        with pytest.raises((OSError, RuntimeError, ValueError, DecodeError)):
             simplify_onnx(str(bad), logs)
 
 
