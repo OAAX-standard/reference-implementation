@@ -221,6 +221,11 @@ jobs:
       - name: Load Docker image
         run: docker load -i /tmp/toolchain/oaax-cpu-toolchain.tar
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Set up Python environment
         run: |
           pip install uv
@@ -279,6 +284,11 @@ jobs:
         with:
           name: simplified-models
           path: tests/test_models/simplified
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Set up Python environment
         run: |
