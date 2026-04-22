@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.10.2)
 
-# Enable verbose makefile outset(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fdata-sections -ffunction-sections -Wl,--gc-sections -fno-exceptions")t (set to OFF for less output)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Enable verbose makefile output (set to OFF for less output)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # === Directory Structure ===
@@ -143,20 +147,24 @@ add_subdirectory(${SPDLOG_DIR} ${CMAKE_CURRENT_BINARY_DIR}/spdlog)
 add_subdirectory(${TOOLS_C_UTILITIES_DIR} ${CMAKE_CURRENT_BINARY_DIR}/c_utilities)
 
 # === Source Files ===
-# Add all source files for the runtime library
 file(GLOB_RECURSE SRC
   ${SRC_DIR}/runtime_core.cpp
   ${SRC_DIR}/runtime_utils.cpp
 )
 
-# ####################### main bin build settings #######################################################################
-
 # === Library Target ===
-# Create the shared library target for the runtime
 add_library(RuntimeLibrary SHARED ${SRC})
 
 if(NOT MSVC)
   target_link_options(RuntimeLibrary PRIVATE "-Wl,-z,noexecstack")
+endif()
+
+# Enable dispatch profiling. Automatically on for Debug; pass -DOAAX_PROFILE=ON
+# to enable in other build types.
+option(OAAX_PROFILE "Enable per-request inference profiling" OFF)
+if(OAAX_PROFILE OR "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+  target_compile_definitions(RuntimeLibrary PUBLIC OAAX_PROFILE=1)
+  message(STATUS "OAAX_PROFILE=1 enabled")
 endif()
 
 # Add optimization and debug flags for Release builds
