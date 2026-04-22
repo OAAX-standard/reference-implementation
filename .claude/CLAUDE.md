@@ -104,62 +104,16 @@ Main branch artifacts go to `s3://oaax/runtimes/latest/` and a versioned path; P
 
 ## Testing
 
-### Python test environment
-
-Uses `uv` with the `integration` extra. Run once after cloning:
-
 ```bash
-git submodule update --init --recursive   # required for runtime deps
-uv sync --extra integration
+git submodule update --init --recursive
+uv sync --extra integration && uv pip install -e conversion-toolchain/
+uv run python tests/stage1.py                              # conversion + YOLO integration
+uv run python tests/stage2.py --runs 300 --csv results.csv # runtime benchmarks
 ```
 
-> **Known issue — onnxsim PyPI sdist has broken metadata for v0.5.0+.** `uv sync` will fail to build `onnxsim` from source. Install the pre-built wheel manually:
-> ```bash
-> pip3 download onnxsim --no-deps -d /tmp/onnxsim-whl
-> uv pip install /tmp/onnxsim-whl/onnxsim-*.whl
-> ```
-> Then install the conversion toolchain package:
-> ```bash
-> uv pip install -e conversion-toolchain/
-> ```
+C++ tests: `bash tests/runtime/build-tests.sh` then run binaries from `tests/runtime/build/` with `LD_LIBRARY_PATH=.`.
 
-### Running Python tests
-
-```bash
-uv run pytest tests/test_conversion.py -v    # toolchain unit tests (onnxsim, logger, utils)
-uv run pytest tests/test_docker.py -v        # Docker E2E tests (requires oaax-cpu-toolchain:latest)
-uv run pytest tests/test_yolo_integration.py -v  # YOLO simplification + inference (uses Docker)
-```
-
-**Stage 1** (conversion + full YOLO model matrix):
-```bash
-uv run python tests/stage1.py
-```
-
-### C++ runtime tests
-
-```bash
-bash runtime-library/build-runtimes.sh X86_64   # build the runtime first
-bash tests/runtime/build-tests.sh               # builds simple_test, yolo_test, multi_model_test
-```
-
-```bash
-# from tests/runtime/build/
-LD_LIBRARY_PATH=. ./simple_test                          # API health checks (no model needed)
-LD_LIBRARY_PATH=. ./simple_test <model.onnx>             # also tests load + empty-queue path
-LD_LIBRARY_PATH=. ./yolo_test <model.onnx> [--runs N] [--warmup N] [--batch N] [--imgsz N]
-LD_LIBRARY_PATH=. ./multi_model_test <model0.onnx> <model1.onnx>
-```
-
-### Stage 2 benchmark
-
-Runs `simple_test` + `yolo_test` across all simplified models and optionally writes a CSV:
-
-```bash
-uv run python tests/stage2.py --runs 300 --warmup 10 --csv results.csv
-```
-
-Requires `tests/test_models/simplified/` to be populated by Stage 1 first.
+> `uv sync` may fail on `onnxsim` (broken sdist metadata). Fix: `pip3 download onnxsim --no-deps -d /tmp/w && uv pip install /tmp/w/onnxsim-*.whl`
 
 ## Git Workflow
 
