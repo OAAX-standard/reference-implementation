@@ -2,7 +2,7 @@
 exclude: ^(runtime-library/deps/|\.venv/|conversion-toolchain/\.venv/)
 
 default_language_version:
-  python: python3.10
+  python: python3.11
 
 repos:
   # ── General file hygiene ─────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "OAAX reference implementation — conversion toolchain and runtime library"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 keywords = ["oaax", "onnx", "inference", "runtime"]
 
 [tool.setuptools.dynamic]
@@ -33,7 +33,7 @@ markers = [
 # ── Ruff (lint + format) ──────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [

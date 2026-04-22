@@ -1,7 +1,6 @@
 import datetime
 import json
 import os
-from typing import List
 
 
 class Message:
@@ -27,7 +26,7 @@ class Message:
 
 class Logs:
     def __init__(self):
-        self.messages: List[Message] = []
+        self.messages: list[Message] = []
 
     def add_message(self, message: str, data: dict = None):
         """Add a new message to the logs.
