@@ -219,7 +219,9 @@ jobs:
           path: /tmp/toolchain
 
       - name: Load Docker image
-        run: docker load -i /tmp/toolchain/oaax-cpu-toolchain.tar
+        run: |
+          docker load -i /tmp/toolchain/oaax-cpu-toolchain.tar
+          docker tag "oaax-cpu-toolchain:$(cat VERSION)" oaax-cpu-toolchain:latest
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
