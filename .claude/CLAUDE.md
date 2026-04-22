@@ -123,5 +123,6 @@ This repository is maintained using a set of Claude Code agents and commands in 
 Other commands available at any time:
 - `/setup-dev` — configure or validate the dev environment
 - `/analyze-ux` — audit developer experience and docs quality
+- `/security-analysis` — audit dependencies, C++ memory safety, Python input validation, CI/CD secrets, and Docker hygiene; run after any dependency change or as part of release prep
 
 Agents, skills, and rules live in `.claude/agents/`, `.claude/skills/`, and `.claude/rules/`.
