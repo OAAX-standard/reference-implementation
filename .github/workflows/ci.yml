@@ -229,9 +229,7 @@ jobs:
       - name: Set up Python environment
         run: |
           pip install uv
-          uv sync --extra integration -q
-          pip3 download onnxsim --no-deps -d /tmp/onnxsim-whl -q
-          uv pip install /tmp/onnxsim-whl/onnxsim-*.whl -q
+          uv sync --extra integration -q --no-build-package onnxsim
           uv pip install -e conversion-toolchain/ -q
 
       - name: Stage 1 — conversion tests + YOLO simplification
@@ -293,7 +291,7 @@ jobs:
       - name: Set up Python environment
         run: |
           pip install uv
-          uv sync --extra integration -q
+          uv sync --extra integration -q --no-build-package onnxsim
           uv pip install -e conversion-toolchain/ -q
 
       - name: Stage 2 — runtime benchmark vs ORT
