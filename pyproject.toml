@@ -14,6 +14,14 @@ keywords = ["oaax", "onnx", "inference", "runtime"]
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
 
+[project.optional-dependencies]
+integration = [
+    "pytest>=7.0",
+    "numpy>=1.21",
+    "onnxruntime>=1.16",
+    "ultralytics>=8.3.0",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
