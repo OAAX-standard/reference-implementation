@@ -1,8 +1,6 @@
 # Reference Implementation
 
-[![Build OAAX conversion toolchain](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-toolchain.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-toolchain.yml)
-[![Build OAAX runtime](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-runtime.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/build-runtime.yml)
-[![Integration tests](https://github.com/OAAX-standard/reference-implementation/actions/workflows/integration-tests.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/integration-tests.yml)
+[![CI](https://github.com/OAAX-standard/reference-implementation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/ci.yml)
 
 This repository contains the source code for building the reference implementation of the OAAX runtime and conversion toolchain.
 
