@@ -101,6 +101,25 @@ grep -rn --exclude-dir=deps --exclude-dir=.git \
 
 Report each finding with file, line, and whether it's a false positive risk or a genuine exposure. Err on the side of flagging — the developer can decide what's acceptable.
 
+## After Every Run
+
+When the analysis is complete:
+1. Save the report to `.claude/reports/security-<YYYY-MM-DD>.md` using the output format above.
+2. Commit and push it:
+   ```bash
+   git add .claude/reports/security-<YYYY-MM-DD>.md
+   git commit -F - <<'EOF'
+   security: add automated security analysis report <YYYY-MM-DD>
+
+   Signed-off-by: Ayoub <assis.ayoub@gmail.com>
+   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+   EOF
+   git push
+   ```
+3. Notify Ayoub with a summary of new or changed findings.
+
+If a previous report exists for the same date, overwrite it. If findings have changed since the last report, call out the delta explicitly.
+
 ## Rules
 
 - Never suggest disabling security checks as a fix
