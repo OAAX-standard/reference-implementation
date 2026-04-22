@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -244,7 +244,7 @@ def write_csv_row(writer, model: str, oaax: tuple | None, ort_r: tuple | None) -
     if not writer:
         return
     row = {
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": model,
         "oaax_avg_ms": oaax[0] if oaax else "",
         "oaax_min_ms": oaax[1] if oaax else "",
