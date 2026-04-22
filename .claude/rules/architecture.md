@@ -2,7 +2,7 @@
 
 ## C API Stability
 
-The 9 functions in `runtime-library/include/runtime_core.hpp` are public API. **Never change existing signatures.** New arguments must go through `runtime_initialization_with_args` key-value pairs.
+The 9 functions in `runtime-library/include/oaax_runtime.h` are public API. **Never change existing signatures.** New arguments must go through the `Config` key-value struct passed to `runtime_init()`.
 
 ## Threading
 

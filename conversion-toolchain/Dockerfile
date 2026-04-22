@@ -1,16 +1,16 @@
 ARG DEBIAN_FRONTEND=noninteractive
-FROM python:3.8.16 as base
+FROM python:3.11-slim AS base
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-RUN echo "## Update and install packages"
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN echo "### Support packages:"
-
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+# hadolint ignore=DL3008
 RUN apt-get update -qq -y --fix-missing \
-  && apt-get install -qq -y gcc g++ curl make xxd wget apt-utils software-properties-common git autoconf \
-    automake libtool python3 unzip cmake build-essential protobuf-compiler libprotoc-dev > /dev/null
-
+  && apt-get install -qq -y --no-install-recommends \
+    gcc g++ curl make xxd wget apt-utils git autoconf \
+    automake libtool unzip cmake build-essential protobuf-compiler libprotoc-dev \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -19,7 +19,6 @@ COPY setup.py /app/setup.py
 COPY conversion_toolchain /app/conversion_toolchain
 COPY scripts/ /app/scripts
 
-RUN echo "### Installing Python dependencies:"
-RUN pip install -r requirements.txt
+RUN uv pip install --system --no-cache --only-binary onnxsim -r requirements.txt
 
 ENTRYPOINT ["bash", "/app/scripts/convert.sh"]

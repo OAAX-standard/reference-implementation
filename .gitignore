@@ -1,8 +1,31 @@
-# Folder for storing build artifacts
-artifacts 
+# Model files
+*.onnx
+*.pt
 
-# Folders
-*.egg-info
-build
-cmake-build-debug
-.idea
+# Build artifacts
+artifacts/
+build/
+cmake-build-debug/
+*.tar.gz
+*.tar
+
+# Python
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+.venv/
+venv/

@@ -1,3 +1,4 @@
+#!/bin/bash
 set -e
 
 cd "$(dirname "$0")" || exit 1
@@ -10,11 +11,12 @@ if [ ! -f "$VERSION_FILE" ]; then
 fi
 VERSION=$(<"$VERSION_FILE")
 
-rm -rf artifacts 2&> /dev/null || true
+echo ">>> Removing previous artifacts..."
+rm -rf artifacts 2>/dev/null || true
 mkdir artifacts
 
 # Build the toolchain as a Docker image
-docker build -t oaax-cpu-toolchain:$VERSION .
+docker build -t "oaax-cpu-toolchain:$VERSION" .
 
 # Save the Docker image as a tarball
-docker save oaax-cpu-toolchain:$VERSION -o ./artifacts/oaax-cpu-toolchain.tar
+docker save "oaax-cpu-toolchain:$VERSION" -o ./artifacts/oaax-cpu-toolchain.tar

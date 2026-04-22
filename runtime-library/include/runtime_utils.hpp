@@ -1,31 +1,26 @@
-
 #ifndef RUNTIME_UTILS_HPP
 #define RUNTIME_UTILS_HPP
 
-#include "runtime_core.hpp"
-#include <vector>
 #include <onnxruntime_cxx_api.h>
 #include <spdlog/spdlog.h>
-#include "concurrentqueue.h"
 
-using namespace std;
+#include <memory>
+#include <string>
+#include <vector>
 
-// Get output names from the ONNX Runtime session
-vector<char *> get_output_names(Ort::Session &session);
+#include "oaax_runtime.h"
 
-// Map tensor_data_type to ONNX Runtime ONNXTensorElementDataType
-ONNXTensorElementDataType map_to_ort_type(tensor_data_type t);
+ONNXTensorElementDataType map_to_ort_type(TensorElementType t);
+TensorElementType map_from_ort_type(ONNXTensorElementDataType type);
+size_t get_element_byte_size(TensorElementType t);
 
-// Map ONNX Runtime ONNXTensorElementDataType to tensor_data_type
-tensor_data_type map_to_tensors_struct_type(ONNXTensorElementDataType type);
+std::vector<std::string> get_input_names(Ort::Session& session);
+std::vector<std::string> get_output_names(Ort::Session& session);
 
-shared_ptr<spdlog::logger> initialize_logger(const string &log_file,
-                                             int file_level = spdlog::level::info,
-                                             int console_level = spdlog::level::info,
-                                             const string prefix = "OAAX");
+std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, int file_level = spdlog::level::info,
+                                                  int console_level = spdlog::level::info,
+                                                  const std::string prefix = "OAAX");
 
 void destroy_logger(std::shared_ptr<spdlog::logger> logger);
 
-void free_queue(moodycamel::ConcurrentQueue<tensors_struct *> &queue);
-
-#endif // RUNTIME_UTILS_HPP
+#endif  // RUNTIME_UTILS_HPP

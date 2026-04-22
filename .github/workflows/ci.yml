@@ -1,0 +1,308 @@
+name: CI
+permissions:
+  contents: none
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ── Build jobs (run in parallel) ────────────────────────────────────────────
+
+  build-runtime-linux:
+    name: Build runtime (Linux)
+    timeout-minutes: 15
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+          lfs: true
+
+      - name: Set up environment
+        run: sudo bash scripts/setup-env.sh
+
+      - name: Build runtimes (X86_64 + AARCH64)
+        run: bash runtime-library/build-runtimes.sh
+
+      - name: Upload X86_64 runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-linux-x86_64
+          path: runtime-library/artifacts/runtime-library-X86_64.tar.gz
+          retention-days: 1
+
+      - name: Upload AARCH64 runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-linux-aarch64
+          path: runtime-library/artifacts/runtime-library-AARCH64.tar.gz
+          retention-days: 1
+
+      - name: Determine version
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            version=$(cat VERSION)
+          else
+            version=${{ github.head_ref }}
+          fi
+          echo "version=$version" >> "$GITHUB_ENV"
+
+      - name: Install s3cmd
+        run: sudo apt-get update -y && sudo apt-get install -y s3cmd
+
+      - name: Configure s3cmd
+        run: |
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          bucket_location = us-east-1
+          host_base = ${{ secrets.S3_ENDPOINT_URL }}
+          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
+          use_https = True
+          EOF
+
+      - name: Upload runtimes to S3
+        run: |
+          s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/x86_64/Ubuntu/library.tar.gz"
+          s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/aarch64/Ubuntu/library.tar.gz"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/latest/CPU/x86_64/Ubuntu/library.tar.gz"
+            s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/latest/CPU/aarch64/Ubuntu/library.tar.gz"
+          fi
+
+  build-runtime-windows:
+    name: Build runtime (Windows)
+    timeout-minutes: 15
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+          lfs: true
+
+      - name: Build runtime
+        run: |
+          cd runtime-library
+          .\build-runtime.bat
+
+      - name: Upload Windows runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-windows-x86_64
+          path: runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz
+          retention-days: 1
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref }}" -eq "refs/heads/main") {
+            $version = Get-Content VERSION
+          } else {
+            $version = "${{ github.head_ref }}"
+          }
+          echo "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload runtime to S3
+        shell: pwsh
+        run: |
+          $version = $env:version
+          $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
+          $targetKey = "runtimes/$version/CPU/x86_64/Windows/library.tar.gz"
+          $latestTargetKey = "runtimes/latest/CPU/x86_64/Windows/library.tar.gz"
+
+          $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
+          $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
+          $s5cmdPath = "$env:USERPROFILE\s5cmd"
+          Invoke-WebRequest -Uri $s5cmdUrl -OutFile $s5cmdZip
+          Expand-Archive -Path $s5cmdZip -DestinationPath $s5cmdPath -Force
+          Remove-Item -Path $s5cmdZip
+          $env:PATH += ";$s5cmdPath"
+
+          $env:AWS_ACCESS_KEY_ID = "${{ secrets.S3_ACCESS_KEY }}"
+          $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.S3_SECRET_KEY }}"
+          s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$targetKey"
+          if ("${{ github.ref }}" -eq "refs/heads/main") {
+            s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$latestTargetKey"
+          }
+
+  build-toolchain:
+    name: Build conversion toolchain
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build Docker image
+        run: bash conversion-toolchain/build-toolchain.sh
+
+      - name: Upload toolchain artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-image
+          path: conversion-toolchain/artifacts/oaax-cpu-toolchain.tar
+          retention-days: 1
+
+      - name: Determine version
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            version=$(cat VERSION)
+          else
+            version=${{ github.head_ref }}
+          fi
+          echo "version=$version" >> "$GITHUB_ENV"
+
+      - name: Install s3cmd
+        run: sudo apt-get update -y && sudo apt-get install -y s3cmd
+
+      - name: Configure s3cmd
+        run: |
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          bucket_location = us-east-1
+          host_base = ${{ secrets.S3_ENDPOINT_URL }}
+          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
+          use_https = True
+          EOF
+
+      - name: Upload toolchain to S3
+        run: |
+          s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/${{ env.version }}/CPU/oaax-cpu-toolchain.tar"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/latest/CPU/oaax-cpu-toolchain.tar"
+          fi
+
+  # ── Test jobs (depend on build jobs) ────────────────────────────────────────
+
+  integration-tests-linux:
+    name: Integration tests (Linux)
+    timeout-minutes: 60
+    runs-on: ubuntu-22.04
+    needs: [build-runtime-linux, build-toolchain]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Download runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-linux-x86_64
+          path: /tmp/runtime
+
+      - name: Extract runtime
+        run: |
+          mkdir -p runtime-library/build
+          tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
+
+      - name: Download toolchain artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: toolchain-image
+          path: /tmp/toolchain
+
+      - name: Load Docker image
+        run: |
+          docker load -i /tmp/toolchain/oaax-cpu-toolchain.tar
+          docker tag "oaax-cpu-toolchain:$(cat VERSION)" oaax-cpu-toolchain:latest
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Python environment
+        run: |
+          pip install uv
+          uv sync --extra integration -q --no-build-package onnxsim
+          uv pip install -e conversion-toolchain/ -q
+
+      - name: Stage 1 — conversion tests + YOLO simplification
+        run: uv run python tests/stage1.py
+
+      - name: Upload simplified models
+        uses: actions/upload-artifact@v4
+        with:
+          name: simplified-models
+          path: tests/test_models/simplified/
+          retention-days: 1
+
+      - name: Stage 2 — runtime benchmark vs ORT
+        run: uv run python tests/stage2.py --runs 100 --csv results-linux.csv
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-linux
+          path: results-linux.csv
+          if-no-files-found: warn
+
+  integration-tests-windows:
+    name: Integration tests (Windows)
+    timeout-minutes: 30
+    runs-on: windows-latest
+    needs: [build-runtime-windows, integration-tests-linux]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Download Windows runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-windows-x86_64
+          path: C:\runtime
+
+      - name: Extract runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path runtime-library\build\Release | Out-Null
+          tar xzf C:\runtime\runtime-library-X86_64-Windows.tar.gz -C runtime-library\build\Release\
+
+      - name: Download simplified models
+        uses: actions/download-artifact@v4
+        with:
+          name: simplified-models
+          path: tests/test_models/simplified
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Python environment
+        run: |
+          pip install uv
+          uv sync --extra integration -q --no-build-package onnxsim
+          uv pip install -e conversion-toolchain/ -q
+
+      - name: Stage 2 — runtime benchmark vs ORT
+        run: uv run python tests/stage2.py --runs 100 --csv results-windows.csv --skip-ort
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-windows
+          path: results-windows.csv
+          if-no-files-found: warn
