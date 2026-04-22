@@ -18,6 +18,8 @@ version = {file = "VERSION"}
 integration = [
     "pytest>=7.0",
     "numpy>=1.21",
+    "onnx>=1.14",
+    "onnx-simplifier>=0.4.36",
     "onnxruntime>=1.16",
     "ultralytics>=8.3.0",
 ]

@@ -112,7 +112,7 @@ class TestDockerConversion:
         logs = json.loads(logs_file.read_text())
         assert isinstance(logs, list) and len(logs) > 0
         messages = [m.get("Message", "") for m in logs]
-        assert any("Successful" in msg for msg in messages), f"No success message: {messages}"
+        assert any("successfully" in msg.lower() for msg in messages), f"No success message: {messages}"
 
     def test_output_loads_in_onnxruntime(self, docker_check, workspace, sample_model):
         """Simplified output is a valid ONNX model."""
