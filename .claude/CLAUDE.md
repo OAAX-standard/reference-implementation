@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working Style
+
+- Question requirements and assumptions before acting — don't just execute blindly.
+- Challenge decisions that look wrong or suboptimal, even if not asked.
+- Propose alternatives when a better approach exists.
+- Ask clarifying questions upfront rather than discovering ambiguity mid-task.
+
 ## Project Overview
 
 OAAX Reference Implementation — two components that together form an AI model deployment pipeline:
@@ -94,6 +101,13 @@ Pre-built third-party libraries (ONNX Runtime 1.16.3/1.21.1, RE2, cpuinfo) live 
 - `delete-temporary-artifacts.yml`: S3 cleanup for old PR artifacts.
 
 Main branch artifacts go to `s3://oaax/runtimes/latest/` and a versioned path; PR builds go to the versioned path only.
+
+## Git Workflow
+
+- **Commit** freely after every logical set of changes — no need to ask.
+- **Push** the current branch freely at any time.
+- **PRs**: notify Ayoub before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures. Always add `ayoubassis` as reviewer.
+- **Merging** is Ayoub's responsibility; never merge a PR.
 
 ## Maintenance Workflows
 

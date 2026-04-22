@@ -21,8 +21,10 @@ Before creating the PR, verify:
 
 ## Creating the PR
 
+Always notify Ayoub before creating the PR and wait for confirmation. Then:
+
 ```bash
-gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
+gh pr create --title "<type>: <description>" --reviewer ayoubassis --body "$(cat <<'EOF'
 ## Summary
 - <bullet>
 
@@ -60,4 +62,4 @@ If a workflow fails:
 
 ## After CI Passes
 
-Report the PR URL and CI status to the user. Do not merge without explicit user instruction.
+Report the PR URL and CI status to Ayoub. Never merge — he reviews and merges himself.
