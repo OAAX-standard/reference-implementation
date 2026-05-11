@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
@@ -33,14 +33,14 @@ jobs:
         run: bash runtime-library/build-runtimes.sh
 
       - name: Upload X86_64 runtime artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: runtime-linux-x86_64
           path: runtime-library/artifacts/runtime-library-X86_64.tar.gz
           retention-days: 1
 
       - name: Upload AARCH64 runtime artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: runtime-linux-aarch64
           path: runtime-library/artifacts/runtime-library-AARCH64.tar.gz
@@ -51,7 +51,7 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             version=$(cat VERSION)
           else
-            version=${{ github.head_ref }}
+            version="$GITHUB_HEAD_REF"
           fi
           echo "version=$version" >> "$GITHUB_ENV"
 
@@ -82,7 +82,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
@@ -94,7 +94,7 @@ jobs:
           .\build-runtime.bat
 
       - name: Upload Windows runtime artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: runtime-windows-x86_64
           path: runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz
@@ -107,7 +107,7 @@ jobs:
           if ("${{ github.ref }}" -eq "refs/heads/main") {
             $version = Get-Content VERSION
           } else {
-            $version = "${{ github.head_ref }}"
+            $version = $env:GITHUB_HEAD_REF
           }
           echo "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
 
@@ -153,7 +153,7 @@ jobs:
         run: bash conversion-toolchain/build-toolchain.sh
 
       - name: Upload toolchain artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: toolchain-image
           path: conversion-toolchain/artifacts/oaax-cpu-toolchain.tar
@@ -164,7 +164,7 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             version=$(cat VERSION)
           else
-            version=${{ github.head_ref }}
+            version="$GITHUB_HEAD_REF"
           fi
           echo "version=$version" >> "$GITHUB_ENV"
 
@@ -194,13 +194,13 @@ jobs:
     needs: [build-runtime-linux, build-toolchain]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
 
       - name: Download runtime artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: runtime-linux-x86_64
           path: /tmp/runtime
@@ -211,7 +211,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
 
       - name: Download toolchain artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: toolchain-image
           path: /tmp/toolchain
@@ -222,7 +222,7 @@ jobs:
           docker tag "oaax-cpu-toolchain:$(cat VERSION)" oaax-cpu-toolchain:latest
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.11"
 
@@ -236,7 +236,7 @@ jobs:
         run: uv run python tests/stage1.py
 
       - name: Upload simplified models
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: simplified-models
           path: tests/test_models/simplified/
@@ -249,13 +249,13 @@ jobs:
     needs: [build-runtime-linux, test-stage1]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
 
       - name: Download runtime artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: runtime-linux-x86_64
           path: /tmp/runtime
@@ -266,7 +266,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
 
       - name: Download simplified models
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: simplified-models
           path: tests/test_models/simplified
@@ -275,7 +275,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q cmake g++
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.11"
 
@@ -290,7 +290,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: benchmark-results-linux-x86_64
           path: results-linux-x86_64.csv
@@ -303,13 +303,13 @@ jobs:
     needs: [build-runtime-linux, test-stage1]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
 
       - name: Download AARCH64 runtime artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: runtime-linux-aarch64
           path: /tmp/runtime
@@ -320,7 +320,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-AARCH64.tar.gz -C runtime-library/build/
 
       - name: Download simplified models
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: simplified-models
           path: tests/test_models/simplified
@@ -329,7 +329,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q cmake g++
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.11"
 
@@ -344,7 +344,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: benchmark-results-linux-arm64
           path: results-linux-arm64.csv
@@ -357,13 +357,13 @@ jobs:
     needs: [build-runtime-windows, test-stage1]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 1
           submodules: recursive
 
       - name: Download Windows runtime artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: runtime-windows-x86_64
           path: C:\runtime
@@ -375,13 +375,13 @@ jobs:
           tar xzf C:\runtime\runtime-library-X86_64-Windows.tar.gz -C runtime-library\build\Release\
 
       - name: Download simplified models
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: simplified-models
           path: tests/test_models/simplified
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.11"
 
@@ -396,7 +396,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: benchmark-results-windows
           path: results-windows.csv
