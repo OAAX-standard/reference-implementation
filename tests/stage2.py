@@ -73,6 +73,18 @@ def simple_test_path() -> Path:
     return TEST_BUILD_DIR / "simple_test"
 
 
+def lifecycle_test_path() -> Path:
+    if IS_WINDOWS:
+        return TEST_BUILD_DIR / "Release" / "lifecycle_test.exe"
+    return TEST_BUILD_DIR / "lifecycle_test"
+
+
+def multi_model_test_path() -> Path:
+    if IS_WINDOWS:
+        return TEST_BUILD_DIR / "Release" / "multi_model_test.exe"
+    return TEST_BUILD_DIR / "multi_model_test"
+
+
 # ── Build yolo_test ────────────────────────────────────────────────────────────
 
 
@@ -153,6 +165,39 @@ def run_simple_test() -> bool:
         print("  simple_test: PASS")
         return True
     print(f"  simple_test: FAIL\n{(text or '')[:400]}")
+    return False
+
+
+def run_lifecycle_test(model_path: Path | None) -> bool:
+    binary = lifecycle_test_path()
+    if not binary.exists():
+        print(f"  lifecycle_test not found at {binary}")
+        return False
+    env = os.environ.copy()
+    if not IS_WINDOWS:
+        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
+    cmd = [str(binary)] + ([str(model_path)] if model_path else [])
+    text = run_process(cmd, cwd=binary.parent, env=env, timeout=120)
+    if text and "All tests passed" in text:
+        print("  lifecycle_test: PASS")
+        return True
+    print(f"  lifecycle_test: FAIL\n{(text or '')[:400]}")
+    return False
+
+
+def run_multi_model_test(model_path: Path) -> bool:
+    binary = multi_model_test_path()
+    if not binary.exists():
+        print(f"  multi_model_test not found at {binary}")
+        return False
+    env = os.environ.copy()
+    if not IS_WINDOWS:
+        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
+    text = run_process([str(binary), str(model_path)], cwd=binary.parent, env=env, timeout=180)
+    if text and "All tests passed" in text:
+        print("  multi_model_test: PASS")
+        return True
+    print(f"  multi_model_test: FAIL\n{(text or '')[:400]}")
     return False
 
 
@@ -304,8 +349,14 @@ def main() -> None:
                     print("  Build failed — aborting")
                     sys.exit(1)
 
-            header("Step 1: simple_test (API health check)")
+            header("Step 1: C++ unit tests")
             run_simple_test()
+            first_model = models[0][0] if models else None
+            run_lifecycle_test(first_model)
+            if first_model:
+                run_multi_model_test(first_model)
+            else:
+                print("  multi_model_test: skipped (no model available)")
 
         header(f"Step 2: OAAX vs ORT  (warmup={args.warmup}, runs={args.runs})")
         print(f"  ORT version: {ort.__version__}")
