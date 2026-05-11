@@ -21,10 +21,10 @@ Before creating the PR, verify:
 
 ## Creating the PR
 
-Always notify Ayoub before creating the PR and wait for confirmation. Then:
+Always notify the maintainer before creating the PR and wait for confirmation. Then:
 
 ```bash
-gh pr create --title "<type>: <description>" --assignee ayoubassis --body "$(cat <<'EOF'
+gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
 ## Summary
 - <bullet>
 
@@ -62,4 +62,4 @@ If a workflow fails:
 
 ## After CI Passes
 
-Report the PR URL and CI status to Ayoub. Never merge — he reviews and merges himself.
+Report the PR URL and CI status to the maintainer. Never merge — the maintainer reviews and merges.

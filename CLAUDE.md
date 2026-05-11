@@ -119,12 +119,12 @@ C++ tests: `bash tests/runtime/build-tests.sh` then run binaries from `tests/run
 
 - **Commit** freely after every logical set of changes — no need to ask. Always sign off commits and include Claude as co-author. Every commit message must end with:
   ```
-  Signed-off-by: Ayoub <aassis@networkoptix.com>
+  Signed-off-by: Your Name <your-email@example.com>
   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
   ```
 - **Push** the current branch freely at any time.
-- **PRs**: notify Ayoub before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures. Always add `ayoubassis` as assignee (`--assignee ayoubassis`) — reviewer assignment is blocked by GitHub when the PR author and reviewer are the same account.
-- **Merging** is Ayoub's responsibility; never merge a PR.
+- **PRs**: notify the maintainer before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures.
+- **Merging** is the maintainer's responsibility; never merge a PR.
 
 ## Maintenance Workflows
 

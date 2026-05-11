@@ -127,12 +127,12 @@ When the analysis is complete:
    git commit -F - <<'EOF'
    security: add automated security analysis report <YYYY-MM-DD>
 
-   Signed-off-by: Ayoub <aassis@networkoptix.com>
+   Signed-off-by: Your Name <your-email@example.com>
    Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
    EOF
    git push
    ```
-3. Notify Ayoub with a summary of new or changed findings.
+3. Notify the maintainer with a summary of new or changed findings.
 
 If a previous report exists for the same date, overwrite it. If findings have changed since the last report, call out the delta explicitly.
 
