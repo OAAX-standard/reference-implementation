@@ -189,48 +189,8 @@ jobs:
 
   # ── Test jobs (depend on build jobs) ────────────────────────────────────────
 
-  integration-tests-aarch64:
-    name: Integration tests (AARCH64)
-    timeout-minutes: 20
-    runs-on: ubuntu-22.04-arm
-    needs: [build-runtime-linux]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          submodules: recursive
-
-      - name: Download AARCH64 runtime artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: runtime-linux-aarch64
-          path: /tmp/runtime
-
-      - name: Extract runtime
-        run: |
-          mkdir -p runtime-library/build
-          tar xzf /tmp/runtime/runtime-library-AARCH64.tar.gz -C runtime-library/build/
-
-      - name: Install build dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y -q cmake g++
-
-      - name: Build C++ tests
-        run: |
-          mkdir -p tests/runtime/build
-          cmake -S tests/runtime -B tests/runtime/build \
-            -DRUNTIME_LIB_DIR="$PWD/runtime-library/build" \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build tests/runtime/build -j$(nproc)
-
-      - name: Run simple_test
-        run: LD_LIBRARY_PATH="$PWD/runtime-library/build" tests/runtime/build/simple_test
-
-      - name: Run lifecycle_test
-        run: LD_LIBRARY_PATH="$PWD/runtime-library/build" tests/runtime/build/lifecycle_test
-
-  integration-tests-linux:
-    name: Integration tests (Linux)
+  test-stage1:
+    name: Stage 1 — conversion tests + model simplification
     timeout-minutes: 60
     runs-on: ubuntu-22.04
     needs: [build-runtime-linux, build-toolchain]
@@ -274,7 +234,7 @@ jobs:
           uv sync --extra integration -q --no-build-package onnxsim
           uv pip install -e conversion-toolchain/ -q
 
-      - name: Stage 1 — conversion tests + YOLO simplification
+      - name: Stage 1 — conversion tests + model simplification
         run: uv run python tests/stage1.py
 
       - name: Upload simplified models
@@ -284,22 +244,119 @@ jobs:
           path: tests/test_models/simplified/
           retention-days: 1
 
+  test-stage2-x86_64:
+    name: Stage 2 — Linux x86_64
+    timeout-minutes: 60
+    runs-on: ubuntu-22.04
+    needs: [build-runtime-linux, test-stage1]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Download runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-linux-x86_64
+          path: /tmp/runtime
+
+      - name: Extract runtime
+        run: |
+          mkdir -p runtime-library/build
+          tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
+
+      - name: Download simplified models
+        uses: actions/download-artifact@v4
+        with:
+          name: simplified-models
+          path: tests/test_models/simplified
+
+      - name: Install build dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake g++
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Python environment
+        run: |
+          pip install uv
+          uv sync --extra integration -q --no-build-package onnxsim
+          uv pip install -e conversion-toolchain/ -q
+
       - name: Stage 2 — runtime benchmark vs ORT
-        run: uv run python tests/stage2.py --runs 100 --csv results-linux.csv
+        run: uv run python tests/stage2.py --runs 100 --csv results-linux-x86_64.csv
 
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results-linux
-          path: results-linux.csv
+          name: benchmark-results-linux-x86_64
+          path: results-linux-x86_64.csv
           if-no-files-found: warn
 
-  integration-tests-windows:
-    name: Integration tests (Windows)
+  test-stage2-arm64:
+    name: Stage 2 — Linux arm64
+    timeout-minutes: 60
+    runs-on: ubuntu-22.04-arm
+    needs: [build-runtime-linux, test-stage1]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Download AARCH64 runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-linux-aarch64
+          path: /tmp/runtime
+
+      - name: Extract runtime
+        run: |
+          mkdir -p runtime-library/build
+          tar xzf /tmp/runtime/runtime-library-AARCH64.tar.gz -C runtime-library/build/
+
+      - name: Download simplified models
+        uses: actions/download-artifact@v4
+        with:
+          name: simplified-models
+          path: tests/test_models/simplified
+
+      - name: Install build dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake g++
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Python environment
+        run: |
+          pip install uv
+          uv sync --extra integration -q --no-build-package onnxsim
+          uv pip install -e conversion-toolchain/ -q
+
+      - name: Stage 2 — runtime benchmark vs ORT
+        run: uv run python tests/stage2.py --runs 100 --csv results-linux-arm64.csv
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-linux-arm64
+          path: results-linux-arm64.csv
+          if-no-files-found: warn
+
+  test-stage2-windows:
+    name: Stage 2 — Windows x86_64
     timeout-minutes: 30
     runs-on: windows-latest
-    needs: [build-runtime-windows, integration-tests-linux]
+    needs: [build-runtime-windows, test-stage1]
 
     steps:
       - uses: actions/checkout@v4
