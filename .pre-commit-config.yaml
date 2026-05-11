@@ -19,6 +19,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=512]
+        exclude: '^uv\.lock$'
 
   # ── Python: ruff (lint + format) ─────────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit

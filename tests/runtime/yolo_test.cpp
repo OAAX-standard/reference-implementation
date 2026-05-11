@@ -22,6 +22,12 @@
 
 #include "oaax_runtime.h"
 
+#ifdef _MSC_VER
+#define dup_str(s) _strdup(s)
+#else
+#define dup_str(s) strdup(s)
+#endif
+
 static const int YOLO_CHANNELS = 3;
 static const int YOLO_OUT_CH = 84;  // 4 bbox + 80 COCO classes, resolution-independent
 
@@ -79,7 +85,7 @@ static Tensors* make_yolo_input(int batch, int request_id, TensorElementType dty
     }
 
     TensorDescriptor& td = ts->tensors[0];
-    td.name = strdup("images");
+    td.name = dup_str("images");
     td.data_type = dtype;
     td.rank = 4;
     td.shape = (int*)malloc(4 * sizeof(int));

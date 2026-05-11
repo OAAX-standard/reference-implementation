@@ -4,15 +4,87 @@
 Output: tests/test_models/simplified/<model>-simplified.onnx
 """
 
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
+from tests.models import download_model
+
 ROOT = Path(__file__).parent.parent
+SIMPLIFIED_DIR = ROOT / "tests" / "test_models" / "simplified"
+DOCKER_IMAGE = "oaax-cpu-toolchain:latest"
+CLASSIFICATION_MODELS = ["resnet18", "mobilenetv2", "squeezenet"]
 
 
 def header(title: str) -> None:
     print(f"\n\033[34m=== {title} ===\033[0m")
+
+
+def _docker_available() -> bool:
+    try:
+        r = subprocess.run(["docker", "images", "-q", DOCKER_IMAGE], capture_output=True, text=True, timeout=5)
+        return bool(r.stdout.strip())
+    except Exception:
+        return False
+
+
+def simplify_classification_models() -> None:
+    """Download classification models and simplify them via the Docker toolchain."""
+    if not _docker_available():
+        print(f"  Skipping: Docker image '{DOCKER_IMAGE}' not available")
+        return
+
+    SIMPLIFIED_DIR.mkdir(parents=True, exist_ok=True)
+    onnx_dir = ROOT / "tests" / "test_models" / "onnx"
+    onnx_dir.mkdir(parents=True, exist_ok=True)
+
+    for model_name in CLASSIFICATION_MODELS:
+        dest = SIMPLIFIED_DIR / f"{model_name}-simplified.onnx"
+        if dest.exists():
+            print(f"  {model_name}: already simplified")
+            continue
+
+        print(f"  Downloading {model_name}...")
+        onnx_path = Path(download_model(model_name, str(onnx_dir)))
+
+        print(f"  Simplifying {model_name} via Docker toolchain...")
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            shutil.copy2(onnx_path, tmp_path / onnx_path.name)
+            docker_out = tmp_path / "output"
+            docker_out.mkdir()
+
+            result = subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{tmp_path}:/input",
+                    "-v",
+                    f"{docker_out}:/output",
+                    DOCKER_IMAGE,
+                    f"/input/{onnx_path.name}",
+                    "/output",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            if result.returncode != 0:
+                print(f"  FAIL: Docker simplification failed for {model_name}: {result.stderr[:200]}")
+                continue
+
+            outputs = list(docker_out.glob("*-simplified.onnx"))
+            if not outputs:
+                print(f"  FAIL: no simplified .onnx produced for {model_name}")
+                continue
+
+            shutil.copy2(outputs[0], dest)
+            print(f"  {model_name}: simplified → {dest.name}")
 
 
 def main() -> None:
@@ -59,6 +131,9 @@ def main() -> None:
         cwd=ROOT,
         check=True,
     )
+
+    header("Step 6: Classification model simplification")
+    simplify_classification_models()
 
     print("\nStage 1 complete — simplified models saved to tests/test_models/simplified/")
 

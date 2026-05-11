@@ -43,6 +43,8 @@ YOLO_MODELS = {
     "yolo11s_320_b4",
 }
 
+CLASSIFICATION_MODELS = {"resnet18", "mobilenetv2", "squeezenet"}
+
 
 def header(title: str) -> None:
     print(f"\n\033[34m=== {title} ===\033[0m")
@@ -133,6 +135,14 @@ def get_simplified_models() -> list:
     ]
 
 
+def get_classification_models() -> list:
+    return [
+        (p, p.stem.replace("-simplified", ""))
+        for p in sorted(SIMPLIFIED_DIR.glob("*-simplified.onnx"))
+        if p.stem.replace("-simplified", "") in CLASSIFICATION_MODELS
+    ]
+
+
 # ── OAAX yolo_test benchmark ──────────────────────────────────────────────────
 
 
@@ -152,7 +162,7 @@ def run_process(cmd: list, cwd=None, env=None, timeout: int = 120) -> str | None
         return None
 
 
-def run_simple_test() -> bool:
+def run_simple_test(model_path: Path | None = None) -> bool:
     binary = simple_test_path()
     if not binary.exists():
         print(f"  simple_test not found at {binary}")
@@ -160,11 +170,13 @@ def run_simple_test() -> bool:
     env = os.environ.copy()
     if not IS_WINDOWS:
         env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
-    text = run_process([str(binary)], cwd=binary.parent, env=env, timeout=60)
+    cmd = [str(binary)] + ([str(model_path)] if model_path else [])
+    label = f"simple_test({model_path.stem})" if model_path else "simple_test"
+    text = run_process(cmd, cwd=binary.parent, env=env, timeout=60)
     if text and "All tests passed" in text:
-        print("  simple_test: PASS")
+        print(f"  {label}: PASS")
         return True
-    print(f"  simple_test: FAIL\n{(text or '')[:400]}")
+    print(f"  {label}: FAIL\n{(text or '')[:400]}")
     return False
 
 
@@ -350,13 +362,28 @@ def main() -> None:
                     sys.exit(1)
 
             header("Step 1: C++ unit tests")
-            run_simple_test()
+            cpp_failures = []
+            if not run_simple_test():
+                cpp_failures.append("simple_test")
             first_model = models[0][0] if models else None
-            run_lifecycle_test(first_model)
+            if not run_lifecycle_test(first_model):
+                cpp_failures.append("lifecycle_test")
             if first_model:
-                run_multi_model_test(first_model)
+                if not run_multi_model_test(first_model):
+                    cpp_failures.append("multi_model_test")
             else:
                 print("  multi_model_test: skipped (no model available)")
+
+            cls_models = get_classification_models()
+            if cls_models:
+                header("Step 1b: C++ unit tests with classification models")
+                for onnx_path, model_name in cls_models:
+                    if not run_simple_test(onnx_path):
+                        cpp_failures.append(f"simple_test({model_name})")
+
+            if cpp_failures:
+                print(f"\n  FAIL: {', '.join(cpp_failures)} failed")
+                sys.exit(1)
 
         header(f"Step 2: OAAX vs ORT  (warmup={args.warmup}, runs={args.runs})")
         print(f"  ORT version: {ort.__version__}")

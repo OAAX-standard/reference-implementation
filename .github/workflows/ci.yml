@@ -189,6 +189,48 @@ jobs:
 
   # ── Test jobs (depend on build jobs) ────────────────────────────────────────
 
+  integration-tests-aarch64:
+    name: Integration tests (AARCH64)
+    timeout-minutes: 20
+    runs-on: ubuntu-22.04
+    needs: [build-runtime-linux]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Download AARCH64 runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-linux-aarch64
+          path: /tmp/runtime
+
+      - name: Extract runtime
+        run: |
+          mkdir -p runtime-library/build
+          tar xzf /tmp/runtime/runtime-library-AARCH64.tar.gz -C runtime-library/build/
+
+      - name: Build and run C++ tests (AARCH64 via QEMU)
+        run: |
+          docker run --platform linux/arm64 --rm \
+            -v "$PWD:/work" -w /work \
+            ubuntu:22.04 bash -c "
+              apt-get update -q && apt-get install -y -q cmake g++ &&
+              mkdir -p tests/runtime/build &&
+              cd tests/runtime/build &&
+              cmake .. -DRUNTIME_LIB_DIR=/work/runtime-library/build -DCMAKE_BUILD_TYPE=Release &&
+              cmake --build . -j\$(nproc) &&
+              LD_LIBRARY_PATH=/work/runtime-library/build ./simple_test &&
+              LD_LIBRARY_PATH=/work/runtime-library/build ./lifecycle_test
+            "
+
   integration-tests-linux:
     name: Integration tests (Linux)
     timeout-minutes: 60

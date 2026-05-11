@@ -29,6 +29,12 @@
 
 #include "oaax_runtime.h"
 
+#ifdef _MSC_VER
+#define dup_str(s) _strdup(s)
+#else
+#define dup_str(s) strdup(s)
+#endif
+
 #define PASS(msg) std::cout << "  PASS: " << msg << std::endl
 #define FAIL(msg)                                    \
     do {                                             \
@@ -71,7 +77,7 @@ static Tensors* make_yolo_input(int imgsz) {
     }
 
     TensorDescriptor& td = t->tensors[0];
-    td.name = strdup("images");
+    td.name = dup_str("images");
     td.data_type = DATA_TYPE_FLOAT;
     td.rank = 4;
     td.shape = (int*)malloc(4 * sizeof(int));
