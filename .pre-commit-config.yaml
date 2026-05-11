@@ -7,7 +7,7 @@ default_language_version:
 repos:
   # ── General file hygiene ─────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: trailing-whitespace
         exclude: '\.md$'          # preserve intentional trailing spaces in Markdown
@@ -23,7 +23,7 @@ repos:
 
   # ── Python: ruff (lint + format) ─────────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.0
+    rev: 6fec9b7edb08fd9989088709d864a7826dc74e80  # frozen: v0.15.12
     hooks:
       - id: ruff          # lint, with auto-fix
         args: [--fix]
@@ -31,20 +31,20 @@ repos:
 
   # ── C / C++: clang-format ────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v19.1.0
+    rev: dd18dad857d6133e90bbe478f4f2f22ec0030269  # frozen: v22.1.5
     hooks:
       - id: clang-format
         types_or: [c, c++]
 
   # ── Shell: shellcheck ────────────────────────────────────────────────────────
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+    rev: 745eface02aef23e168a8afb6b5737818efbea95  # frozen: v0.11.0.1
     hooks:
       - id: shellcheck
 
   # ── Dockerfile: hadolint ─────────────────────────────────────────────────────
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
+    rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
     hooks:
       - id: hadolint-docker
 

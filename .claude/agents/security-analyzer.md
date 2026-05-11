@@ -127,7 +127,7 @@ When the analysis is complete:
    git commit -F - <<'EOF'
    security: add automated security analysis report <YYYY-MM-DD>
 
-   Signed-off-by: Ayoub <assis.ayoub@gmail.com>
+   Signed-off-by: Ayoub <aassis@networkoptix.com>
    Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
    EOF
    git push

@@ -119,7 +119,7 @@ C++ tests: `bash tests/runtime/build-tests.sh` then run binaries from `tests/run
 
 - **Commit** freely after every logical set of changes — no need to ask. Always sign off commits and include Claude as co-author. Every commit message must end with:
   ```
-  Signed-off-by: Ayoub <assis.ayoub@gmail.com>
+  Signed-off-by: Ayoub <aassis@networkoptix.com>
   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
   ```
 - **Push** the current branch freely at any time.

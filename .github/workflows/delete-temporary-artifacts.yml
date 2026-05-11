@@ -2,6 +2,7 @@ name: Delete runtimes and toolchain on PR close
 
 permissions:
   contents: none
+  id-token: none
 
 on:
   pull_request:

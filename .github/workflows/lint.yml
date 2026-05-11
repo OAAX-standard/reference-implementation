@@ -2,6 +2,7 @@ name: Lint
 
 permissions:
   contents: read
+  id-token: none
 
 on:
   push:
