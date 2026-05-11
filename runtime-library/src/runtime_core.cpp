@@ -144,24 +144,30 @@ static Tensors* build_output(int model_id, const std::vector<Ort::Value>& ort_ou
         free(out);
         return nullptr;
     }
+    memset(out->tensors, 0, (size_t)n * sizeof(TensorDescriptor));
 
-    for (int i = 0; i < n; ++i) {
-        auto info = ort_outputs[i].GetTensorTypeAndShapeInfo();
-        auto shape = info.GetShape();
-        TensorElementType elem_type = map_from_ort_type(info.GetElementType());
+    try {
+        for (int i = 0; i < n; ++i) {
+            auto info = ort_outputs[i].GetTensorTypeAndShapeInfo();
+            auto shape = info.GetShape();
+            TensorElementType elem_type = map_from_ort_type(info.GetElementType());
 
-        out->tensors[i].name = strdup(m.output_names[i].c_str());
-        out->tensors[i].data_type = elem_type;
-        out->tensors[i].rank = (int)shape.size();
-        out->tensors[i].shape = (int*)malloc(shape.size() * sizeof(int));
-        for (size_t j = 0; j < shape.size(); ++j) out->tensors[i].shape[j] = (int)shape[j];
+            out->tensors[i].name = strdup(m.output_names[i].c_str());
+            out->tensors[i].data_type = elem_type;
+            out->tensors[i].rank = (int)shape.size();
+            out->tensors[i].shape = (int*)malloc(shape.size() * sizeof(int));
+            for (size_t j = 0; j < shape.size(); ++j) out->tensors[i].shape[j] = (int)shape[j];
 
-        size_t elem_count = info.GetElementCount();
-        size_t elem_size = get_element_byte_size(elem_type);
-        out->tensors[i].data_size = elem_count * elem_size;
-        out->tensors[i].data = malloc(out->tensors[i].data_size);
-        if (out->tensors[i].data)
-            memcpy(out->tensors[i].data, ort_outputs[i].GetTensorData<void>(), out->tensors[i].data_size);
+            size_t elem_count = info.GetElementCount();
+            size_t elem_size = get_element_byte_size(elem_type);
+            out->tensors[i].data_size = elem_count * elem_size;
+            out->tensors[i].data = malloc(out->tensors[i].data_size);
+            if (out->tensors[i].data)
+                memcpy(out->tensors[i].data, ort_outputs[i].GetTensorData<void>(), out->tensors[i].data_size);
+        }
+    } catch (...) {
+        deep_free_tensors(out);
+        throw;
     }
     return out;
 }
@@ -206,6 +212,7 @@ static void worker_loop(int model_id) {
 
             int request_id = input->id;
             deep_free_tensors(input);
+            input = nullptr;
 
             Tensors* output = build_output(model_id, ort_outputs, request_id);
             if (output) {
