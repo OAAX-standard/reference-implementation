@@ -2,7 +2,7 @@
 
 ## Title Format
 
-`<type>: <short description>` — e.g., `feat: add number_of_threads init arg` or `fix: correct AARCH64 alignment`.
+`<type>: <short description>` — e.g., `feat: add num_threads init arg` or `fix: correct AARCH64 alignment`.
 
 Types: `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`.
 

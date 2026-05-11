@@ -77,7 +77,7 @@ const char *runtime_get_name(void);
 const char *runtime_get_info(void);
 ```
 
-`Config` is a `{length, keys[], values[]}` key-value struct. Supported init keys: `log_level`, `log_file`, `number_of_threads`. `ModelConfig` carries `file_path`, optional `model_data`/`model_size` for in-memory load, and a per-model `Config`.
+`Config` is a `{length, keys[], values[]}` key-value struct. Supported init keys: `log_level`, `log_file`, `num_threads`. `ModelConfig` carries `file_path`, optional `model_data`/`model_size` for in-memory load, and a per-model `Config`.
 
 ### Threading Model
 

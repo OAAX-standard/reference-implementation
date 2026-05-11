@@ -39,7 +39,7 @@ const char *runtime_version();
 const char *runtime_name();
 ```
 
-Supported init args: `log_level`, `log_file`, `number_of_threads`.
+Supported init args: `log_level`, `log_file`, `num_threads`.
 
 ## Platform Support
 

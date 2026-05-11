@@ -7,7 +7,7 @@ The optimization step includes checking the correctness of the ONNX graph, fusin
 
 ## Getting started
 
-The Docker image is built using the provided [Dockerfile](Dockerfile) and [entrypoint](scripts%2Fconvert.sh) script. 
+The Docker image is built using the provided [Dockerfile](Dockerfile) and [entrypoint](scripts/convert.sh) script.
 The entrypoint script takes two parameters:
 - The path to the platform-agnostic model.
 - The path to the output directory where the optimized model will be saved, along with a JSON file that contains the conversion process logs.

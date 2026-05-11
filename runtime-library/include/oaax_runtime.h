@@ -66,16 +66,16 @@ typedef enum TensorElementType {
 } TensorElementType;
 
 typedef struct TensorDescriptor {
-    char* name;
+    char* name; /* tensor name as declared in the ONNX graph */
     TensorElementType data_type;
-    int rank;
-    int* shape;
-    size_t data_size;
-    void* data;
+    int rank;         /* number of dimensions; also the length of shape[] */
+    int* shape;       /* dimension sizes, e.g. {1, 3, 640, 640} */
+    size_t data_size; /* byte length of data: sizeof(element) * product(shape) */
+    void* data;       /* raw tensor bytes, caller-allocated */
 } TensorDescriptor;
 
 typedef struct Tensors {
-    int id;
+    int id; /* caller-assigned request token; echoed back on the output */
     int num_tensors;
     TensorDescriptor* tensors;
 } Tensors;

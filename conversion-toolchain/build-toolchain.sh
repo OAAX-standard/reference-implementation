@@ -20,3 +20,6 @@ docker build -t "oaax-cpu-toolchain:$VERSION" .
 
 # Save the Docker image as a tarball
 docker save "oaax-cpu-toolchain:$VERSION" -o ./artifacts/oaax-cpu-toolchain.tar
+
+# Tag as :latest so local runs of stage1.py find the image without extra steps
+docker tag "oaax-cpu-toolchain:$VERSION" oaax-cpu-toolchain:latest

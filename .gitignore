@@ -29,3 +29,7 @@ Thumbs.db
 # Virtual environments
 .venv/
 venv/
+
+# Test / benchmark output
+runtime.log
+results*.csv

@@ -36,6 +36,45 @@ The public API is defined in `runtime-library/include/oaax_runtime.h`. Never cha
 
 The conversion toolchain is built using Docker and requires Docker to be installed on your machine. You can find instructions for installing Docker [here](https://docs.docker.com/get-docker/).
 
+## Running the tests
+
+Tests use [uv](https://docs.astral.sh/uv/). Install it first:
+
+```bash
+pip install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then set up the environment and run:
+
+```bash
+git submodule update --init --recursive
+uv sync --extra integration
+uv pip install -e conversion-toolchain/
+
+# After building the toolchain, tag it so stage1 can find it:
+docker tag "oaax-cpu-toolchain:$(cat VERSION)" oaax-cpu-toolchain:latest
+
+uv run python tests/stage1.py          # conversion tests + model simplification
+uv run python tests/stage2.py --csv results.csv  # runtime benchmarks
+```
+
+## Known issues
+
+**`uv sync` fails on `onnxsim`** with a metadata error on some platforms. Fix:
+
+```bash
+pip3 download onnxsim --no-deps -d /tmp/w
+uv pip install /tmp/w/onnxsim-*.whl
+```
+
+**`onnxsim` has no arm64 wheel.** On arm64 machines, omit `--extra integration` and install only what you need:
+
+```bash
+uv sync
+uv pip install "numpy>=1.21" "onnxruntime>=1.16" "pytest>=7.0"
+```
+
 ## Commit conventions
 
 All commits must include a sign-off and co-author line:

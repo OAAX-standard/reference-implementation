@@ -1,6 +1,7 @@
 # Reference Implementation
 
 [![CI](https://github.com/OAAX-standard/reference-implementation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/ci.yml)
+[![Lint](https://github.com/OAAX-standard/reference-implementation/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/OAAX-standard/reference-implementation/actions/workflows/lint.yml)
 
 This repository contains the source code for building the reference implementation of the OAAX runtime and conversion toolchain.
 
@@ -85,13 +86,14 @@ git submodule update --init --recursive
 uv sync --extra integration
 uv pip install -e conversion-toolchain/
 
-# Python tests
-uv run python tests/stage1.py          # conversion + YOLO model matrix
-uv run python tests/stage2.py --csv results.csv  # runtime benchmarks
-
-# C++ tests
-bash runtime-library/build-runtimes.sh X86_64
+# Build C++ test binaries (requires cmake and g++)
 bash tests/runtime/build-tests.sh
+
+# Stage 1: conversion tests + model simplification (requires Docker)
+uv run python tests/stage1.py
+
+# Stage 2: runtime benchmarks
+uv run python tests/stage2.py --csv results.csv
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup details and known issues.

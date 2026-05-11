@@ -25,14 +25,17 @@ function get_filename_from_url() {
 
 # Iterate over all toolchain URLs to download and extract them
 for url in "${toolchain_urls[@]}"; do
-    filename=$(get_filename_from_url "$url") # Get the filename from the URL
-    echo wget -nv -c "$url"                 # Print the wget command for logging
-    wget -nv -c "$url"                      # Download the file with minimal output and resume capability
-    # Extract the downloaded file to /opt, trying both gzip and non-gzip formats
+    filename=$(get_filename_from_url "$url")
+    # Derive the expected top-level directory name from the tarball name (strip .tar.gz)
+    dirname="${filename%.tar.gz}"
+    if [ -d "/opt/$dirname" ]; then
+        echo ">>>>>>>>>>> already installed: $dirname (skipping download)"
+        continue
+    fi
+    echo wget -nv -c "$url"
+    wget -nv -c "$url"
     tar xzf "$filename" -C /opt 2>/dev/null || tar xf "$filename" -C /opt
-    # Remove the downloaded file after extraction
     rm -rf "$filename" || true
-    # Log the successful extraction of the file
     echo ">>>>>>>>>>> extracted: $filename"
 done
 

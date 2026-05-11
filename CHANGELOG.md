@@ -1,4 +1,4 @@
-# Version 2.0.0
+# Version 2.0.0 (2026-05-11)
 - Introduced OAAX v2 API (`oaax_runtime.h`): replaces the v1 9-function API with a richer interface supporting multi-model loading, per-model config, structured status codes, and a `runtime_get_info()` diagnostic call.
 - Removed deprecated v1 header (`runtime_core.hpp`).
 
