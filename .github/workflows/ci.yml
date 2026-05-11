@@ -58,25 +58,22 @@ jobs:
       - name: Install s3cmd
         run: sudo apt-get update -y && sudo apt-get install -y s3cmd
 
-      - name: Configure s3cmd
-        run: |
-          cat > ~/.s3cfg <<EOF
-          [default]
-          access_key = ${{ secrets.S3_ACCESS_KEY }}
-          secret_key = ${{ secrets.S3_SECRET_KEY }}
-          bucket_location = us-east-1
-          host_base = ${{ secrets.S3_ENDPOINT_URL }}
-          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
-          use_https = True
-          EOF
-
       - name: Upload runtimes to S3
+        env:
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
         run: |
-          s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/x86_64/Ubuntu/library.tar.gz"
-          s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/aarch64/Ubuntu/library.tar.gz"
+          s3cmd_flags="--access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY --host=$S3_ENDPOINT_URL --host-bucket=%(bucket)s.$S3_ENDPOINT_URL --bucket-location=us-east-1 --ssl"
+          # shellcheck disable=SC2086
+          s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/x86_64/Ubuntu/library.tar.gz"
+          # shellcheck disable=SC2086
+          s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/aarch64/Ubuntu/library.tar.gz"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            s3cmd put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/latest/CPU/x86_64/Ubuntu/library.tar.gz"
-            s3cmd put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/latest/CPU/aarch64/Ubuntu/library.tar.gz"
+            # shellcheck disable=SC2086
+            s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/latest/CPU/x86_64/Ubuntu/library.tar.gz"
+            # shellcheck disable=SC2086
+            s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/latest/CPU/aarch64/Ubuntu/library.tar.gz"
           fi
 
   build-runtime-windows:
@@ -125,7 +122,12 @@ jobs:
           $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
           $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
           $s5cmdPath = "$env:USERPROFILE\s5cmd"
+          $expectedSha256 = "9d8a98c1d9f6284c6d54aeec3daeb5f1412fd101850ae756c1e70dd8ffe52166"
           Invoke-WebRequest -Uri $s5cmdUrl -OutFile $s5cmdZip
+          $actualSha256 = (Get-FileHash $s5cmdZip -Algorithm SHA256).Hash.ToLower()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "s5cmd checksum mismatch: expected $expectedSha256, got $actualSha256"
+          }
           Expand-Archive -Path $s5cmdZip -DestinationPath $s5cmdPath -Force
           Remove-Item -Path $s5cmdZip
           $env:PATH += ";$s5cmdPath"
@@ -169,23 +171,18 @@ jobs:
       - name: Install s3cmd
         run: sudo apt-get update -y && sudo apt-get install -y s3cmd
 
-      - name: Configure s3cmd
-        run: |
-          cat > ~/.s3cfg <<EOF
-          [default]
-          access_key = ${{ secrets.S3_ACCESS_KEY }}
-          secret_key = ${{ secrets.S3_SECRET_KEY }}
-          bucket_location = us-east-1
-          host_base = ${{ secrets.S3_ENDPOINT_URL }}
-          host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
-          use_https = True
-          EOF
-
       - name: Upload toolchain to S3
+        env:
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
         run: |
-          s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/${{ env.version }}/CPU/oaax-cpu-toolchain.tar"
+          s3cmd_flags="--access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY --host=$S3_ENDPOINT_URL --host-bucket=%(bucket)s.$S3_ENDPOINT_URL --bucket-location=us-east-1 --ssl"
+          # shellcheck disable=SC2086
+          s3cmd $s3cmd_flags put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/${{ env.version }}/CPU/oaax-cpu-toolchain.tar"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            s3cmd put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/latest/CPU/oaax-cpu-toolchain.tar"
+            # shellcheck disable=SC2086
+            s3cmd $s3cmd_flags put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/latest/CPU/oaax-cpu-toolchain.tar"
           fi
 
   # ── Test jobs (depend on build jobs) ────────────────────────────────────────

@@ -25,6 +25,9 @@ def simplify_onnx(onnx_path: str, logs):
     return simp_onnx_path
 
 
-def md5_hash(file_path):
+def md5_hash(file_path: str) -> str:
+    h = hashlib.md5()
     with open(file_path, "rb") as f:
-        return hashlib.md5(f.read()).hexdigest()
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()

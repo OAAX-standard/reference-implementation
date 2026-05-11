@@ -194,8 +194,7 @@ std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, i
 
         return logger;
     } catch (const spdlog::spdlog_ex& ex) {
-        std::cerr << "Logger initialization failed: " << ex.what() << "\n";
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(std::string("Logger initialization failed: ") + ex.what());
     }
 }
 

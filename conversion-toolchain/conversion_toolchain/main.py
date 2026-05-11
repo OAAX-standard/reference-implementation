@@ -7,8 +7,15 @@ def cli():
     parser.add_argument("--output-dir", required=True, help="Output directory")
     args = parser.parse_args()
 
-    onnx_path = args.onnx_path
+    import os
+
+    onnx_path = os.path.realpath(args.onnx_path)
     output_dir = args.output_dir
+
+    if not onnx_path.endswith(".onnx"):
+        parser.error(f"--onnx-path must point to a .onnx file, got: {onnx_path}")
+    if not os.path.isfile(onnx_path):
+        parser.error(f"File not found: {onnx_path}")
 
     from os import makedirs
     from os.path import join, split

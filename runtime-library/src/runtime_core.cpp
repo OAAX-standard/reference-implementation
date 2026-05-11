@@ -1,4 +1,5 @@
 #include <atomic>
+#include <climits>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -156,7 +157,11 @@ static Tensors* build_output(int model_id, const std::vector<Ort::Value>& ort_ou
             out->tensors[i].data_type = elem_type;
             out->tensors[i].rank = (int)shape.size();
             out->tensors[i].shape = (int*)malloc(shape.size() * sizeof(int));
-            for (size_t j = 0; j < shape.size(); ++j) out->tensors[i].shape[j] = (int)shape[j];
+            for (size_t j = 0; j < shape.size(); ++j) {
+                if (shape[j] > INT_MAX || shape[j] < 0)
+                    throw std::runtime_error("tensor dimension out of int range: " + std::to_string(shape[j]));
+                out->tensors[i].shape[j] = (int)shape[j];
+            }
 
             size_t elem_count = info.GetElementCount();
             size_t elem_size = get_element_byte_size(elem_type);
@@ -220,6 +225,9 @@ static void worker_loop(int model_id) {
                     sem_post(&g_output_sem);
                 else
                     deep_free_tensors(output);
+            } else {
+                g_logger->error("[model {}] build_output returned null (OOM); result dropped for request {}", model_id,
+                                request_id);
             }
         } catch (const std::exception& e) {
             g_logger->error("[model {}] Inference error: {}", model_id, e.what());
