@@ -338,8 +338,8 @@ jobs:
       - name: Set up Python environment
         run: |
           pip install uv
-          uv sync --extra integration -q --no-build-package onnxsim
-          uv pip install -e conversion-toolchain/ -q
+          uv sync -q
+          uv pip install "numpy>=1.21" "onnxruntime>=1.16" "pytest>=7.0" -q
 
       - name: Stage 2 — runtime benchmark vs ORT
         run: uv run python tests/stage2.py --runs 100 --csv results-linux-arm64.csv
