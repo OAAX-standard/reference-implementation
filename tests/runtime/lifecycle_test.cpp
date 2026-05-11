@@ -64,8 +64,8 @@ static void free_tensors(Tensors* t) {
     free(t);
 }
 
-// Allocate a zero-filled float32 YOLO input (1 x 3 x imgsz x imgsz).
-static Tensors* make_yolo_input(int imgsz) {
+// Allocate a zero-filled float32 input (1 x 3 x imgsz x imgsz).
+static Tensors* make_input(int imgsz, const char* input_name) {
     Tensors* t = (Tensors*)calloc(1, sizeof(Tensors));
     if (!t) return nullptr;
     t->id = 1;
@@ -77,7 +77,7 @@ static Tensors* make_yolo_input(int imgsz) {
     }
 
     TensorDescriptor& td = t->tensors[0];
-    td.name = dup_str("images");
+    td.name = dup_str(input_name);
     td.data_type = DATA_TYPE_FLOAT;
     td.rank = 4;
     td.shape = (int*)malloc(4 * sizeof(int));
@@ -101,7 +101,19 @@ static Tensors* make_yolo_input(int imgsz) {
 }
 
 int main(int argc, char** argv) {
-    const char* model_path = (argc > 1) ? argv[1] : nullptr;
+    const char* model_path = nullptr;
+    const char* input_name = "images";
+    int imgsz = 640;
+
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--input-name") == 0 && i + 1 < argc)
+            input_name = argv[++i];
+        else if (strcmp(argv[i], "--imgsz") == 0 && i + 1 < argc)
+            imgsz = atoi(argv[++i]);
+        else if (argv[i][0] != '-' && !model_path)
+            model_path = argv[i];
+    }
+
     Config cfg = make_cfg();
 
     std::cout << "=== OAAX v2 Runtime Lifecycle Tests ===" << std::endl;
@@ -254,7 +266,7 @@ int main(int argc, char** argv) {
         ASSERT(runtime_load_models(1, &mc) == RUNTIME_STATUS_SUCCESS,
                std::string("cycle 2: load failed: ") + (runtime_get_error() ? runtime_get_error() : ""));
 
-        Tensors* input = make_yolo_input(640);
+        Tensors* input = make_input(imgsz, input_name);
         ASSERT(input != nullptr, "cycle 2: failed to allocate input tensor");
 
         ASSERT(runtime_enqueue_input(0, input) == RUNTIME_STATUS_SUCCESS, "cycle 2: enqueue failed");

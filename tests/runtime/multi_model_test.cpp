@@ -34,9 +34,6 @@
 #define dup_str(s) strdup(s)
 #endif
 
-static const int YOLO_CHANNELS = 3;
-static const int YOLO_HEIGHT = 640;
-static const int YOLO_WIDTH = 640;
 static const int YOLO_OUT_CH = 84;
 static const int YOLO_ANCHORS = 8400;
 
@@ -70,7 +67,7 @@ static void free_tensors(Tensors* t) {
     free(t);
 }
 
-static Tensors* make_yolo_input(int request_id) {
+static Tensors* make_input(int request_id, const char* input_name, int imgsz) {
     Tensors* ts = (Tensors*)malloc(sizeof(Tensors));
     if (!ts) return nullptr;
     ts->id = request_id;
@@ -81,16 +78,17 @@ static Tensors* make_yolo_input(int request_id) {
         return nullptr;
     }
 
+    static const int CHANNELS = 3;
     TensorDescriptor& td = ts->tensors[0];
-    td.name = dup_str("images");
+    td.name = dup_str(input_name);
     td.data_type = DATA_TYPE_FLOAT;
     td.rank = 4;
     td.shape = (int*)malloc(4 * sizeof(int));
     td.shape[0] = 1;
-    td.shape[1] = YOLO_CHANNELS;
-    td.shape[2] = YOLO_HEIGHT;
-    td.shape[3] = YOLO_WIDTH;
-    td.data_size = YOLO_CHANNELS * YOLO_HEIGHT * YOLO_WIDTH * sizeof(float);
+    td.shape[1] = CHANNELS;
+    td.shape[2] = imgsz;
+    td.shape[3] = imgsz;
+    td.data_size = CHANNELS * imgsz * imgsz * sizeof(float);
     td.data = calloc(1, td.data_size);
     if (!td.data) {
         free(td.shape);
@@ -102,8 +100,9 @@ static Tensors* make_yolo_input(int request_id) {
     return ts;
 }
 
-static bool valid_yolo_output(const Tensors* out) {
-    if (!out || out->num_tensors != 1) return false;
+static bool valid_output(const Tensors* out, bool validate_shape) {
+    if (!out || out->num_tensors < 1) return false;
+    if (!validate_shape) return true;
     const TensorDescriptor& td = out->tensors[0];
     if (td.rank != 3) return false;
     if (td.shape[0] != 1) return false;
@@ -116,13 +115,33 @@ static bool valid_yolo_output(const Tensors* out) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <model.onnx> [model2.onnx]" << std::endl;
-        return 1;
+    const char* path0 = nullptr;
+    const char* path1 = nullptr;
+    const char* input_name = "images";
+    int imgsz = 640;
+    bool no_validate = false;
+
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--input-name") == 0 && i + 1 < argc)
+            input_name = argv[++i];
+        else if (strcmp(argv[i], "--imgsz") == 0 && i + 1 < argc)
+            imgsz = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--no-validate") == 0)
+            no_validate = true;
+        else if (argv[i][0] != '-') {
+            if (!path0)
+                path0 = argv[i];
+            else if (!path1)
+                path1 = argv[i];
+        }
     }
 
-    const char* path0 = argv[1];
-    const char* path1 = argc > 2 ? argv[2] : argv[1];
+    if (!path0) {
+        std::cerr << "Usage: " << argv[0]
+                  << " <model.onnx> [model2.onnx] [--input-name NAME] [--imgsz N] [--no-validate]" << std::endl;
+        return 1;
+    }
+    if (!path1) path1 = path0;
 
     std::cout << "=== Multi-model async inference test ===" << std::endl;
     std::cout << "  Model 0: " << path0 << std::endl;
@@ -167,7 +186,7 @@ int main(int argc, char** argv) {
 
     std::thread prod0([&]() {
         for (int i = 0; i < N_REQUESTS; ++i) {
-            Tensors* input = make_yolo_input(i);
+            Tensors* input = make_input(i, input_name, imgsz);
             if (!input) {
                 ok = false;
                 return;
@@ -185,7 +204,7 @@ int main(int argc, char** argv) {
     std::thread prod1([&]() {
         for (int i = 0; i < N_REQUESTS; ++i) {
             int id = ID_OFFSET_M1 + i;
-            Tensors* input = make_yolo_input(id);
+            Tensors* input = make_input(id, input_name, imgsz);
             if (!input) {
                 ok = false;
                 return;
@@ -216,7 +235,7 @@ int main(int argc, char** argv) {
             }
             in_flight--;
 
-            if (!valid_yolo_output(output)) shape_errors++;
+            if (!valid_output(output, !no_validate)) shape_errors++;
 
             int id = output->id;
             bool id_belongs_to_model = (model_id == 0 && id >= 0 && id < N_REQUESTS) ||

@@ -19,7 +19,8 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +47,51 @@ YOLO_MODELS = {
 CLASSIFICATION_MODELS = {"resnet18", "mobilenetv2", "squeezenet"}
 
 
+# ── Model spec ────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class ModelSpec:
+    name: str
+    path: Path
+    model_type: str  # "yolo" | "classification"
+    input_name: str  # tensor name expected by the model
+    input_channels: int
+    input_size: int  # spatial size (square assumed)
+    batch: int
+
+
+def build_model_spec(path: Path, name: str, model_type: str) -> ModelSpec:
+    """Build a ModelSpec by reading input metadata from the ONNX session."""
+    batch = 4 if name.endswith("_b4") else 1
+    default_size = 640 if model_type == "yolo" else 224
+    default_name = "images" if model_type == "yolo" else "data"
+    try:
+        sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        inp = sess.get_inputs()[0]
+        shape = inp.shape
+        channels = int(shape[1]) if len(shape) > 1 and isinstance(shape[1], int) else 3
+        size = int(shape[2]) if len(shape) > 2 and isinstance(shape[2], int) else default_size
+        return ModelSpec(name, path, model_type, inp.name, channels, size, batch)
+    except Exception:
+        return ModelSpec(name, path, model_type, default_name, 3, default_size, batch)
+
+
+def get_all_model_specs() -> list[ModelSpec]:
+    """Return ModelSpec objects for every recognised simplified model on disk."""
+    specs = []
+    for p in sorted(SIMPLIFIED_DIR.glob("*-simplified.onnx")):
+        stem = p.stem.replace("-simplified", "")
+        if stem in YOLO_MODELS:
+            specs.append(build_model_spec(p, stem, "yolo"))
+        elif stem in CLASSIFICATION_MODELS:
+            specs.append(build_model_spec(p, stem, "classification"))
+    return specs
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
 def header(title: str) -> None:
     print(f"\n\033[34m=== {title} ===\033[0m")
 
@@ -63,31 +109,29 @@ def parse_args() -> argparse.Namespace:
 # ── Binary paths ──────────────────────────────────────────────────────────────
 
 
-def yolo_test_path() -> Path:
+def _bin(name: str) -> Path:
     if IS_WINDOWS:
-        return TEST_BUILD_DIR / "Release" / "yolo_test.exe"
-    return TEST_BUILD_DIR / "yolo_test"
+        return TEST_BUILD_DIR / "Release" / f"{name}.exe"
+    return TEST_BUILD_DIR / name
+
+
+def yolo_test_path() -> Path:
+    return _bin("yolo_test")
 
 
 def simple_test_path() -> Path:
-    if IS_WINDOWS:
-        return TEST_BUILD_DIR / "Release" / "simple_test.exe"
-    return TEST_BUILD_DIR / "simple_test"
+    return _bin("simple_test")
 
 
 def lifecycle_test_path() -> Path:
-    if IS_WINDOWS:
-        return TEST_BUILD_DIR / "Release" / "lifecycle_test.exe"
-    return TEST_BUILD_DIR / "lifecycle_test"
+    return _bin("lifecycle_test")
 
 
 def multi_model_test_path() -> Path:
-    if IS_WINDOWS:
-        return TEST_BUILD_DIR / "Release" / "multi_model_test.exe"
-    return TEST_BUILD_DIR / "multi_model_test"
+    return _bin("multi_model_test")
 
 
-# ── Build yolo_test ────────────────────────────────────────────────────────────
+# ── Build C++ tests ────────────────────────────────────────────────────────────
 
 
 def build_runtime_tests() -> bool:
@@ -124,26 +168,7 @@ def build_runtime_tests() -> bool:
         return False
 
 
-# ── Model discovery ────────────────────────────────────────────────────────────
-
-
-def get_simplified_models() -> list:
-    return [
-        (p, p.stem.replace("-simplified", ""))
-        for p in sorted(SIMPLIFIED_DIR.glob("*-simplified.onnx"))
-        if p.stem.replace("-simplified", "") in YOLO_MODELS
-    ]
-
-
-def get_classification_models() -> list:
-    return [
-        (p, p.stem.replace("-simplified", ""))
-        for p in sorted(SIMPLIFIED_DIR.glob("*-simplified.onnx"))
-        if p.stem.replace("-simplified", "") in CLASSIFICATION_MODELS
-    ]
-
-
-# ── OAAX yolo_test benchmark ──────────────────────────────────────────────────
+# ── Process runner ────────────────────────────────────────────────────────────
 
 
 def parse_field(text: str, pattern: str) -> str:
@@ -162,17 +187,24 @@ def run_process(cmd: list, cwd=None, env=None, timeout: int = 120) -> str | None
         return None
 
 
-def run_simple_test(model_path: Path | None = None) -> bool:
+def _make_env() -> dict:
+    env = os.environ.copy()
+    if not IS_WINDOWS:
+        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
+    return env
+
+
+# ── C++ unit test runners ─────────────────────────────────────────────────────
+
+
+def run_simple_test(spec: ModelSpec | None = None) -> bool:
     binary = simple_test_path()
     if not binary.exists():
         print(f"  simple_test not found at {binary}")
         return False
-    env = os.environ.copy()
-    if not IS_WINDOWS:
-        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
-    cmd = [str(binary)] + ([str(model_path)] if model_path else [])
-    label = f"simple_test({model_path.stem})" if model_path else "simple_test"
-    text = run_process(cmd, cwd=binary.parent, env=env, timeout=60)
+    cmd = [str(binary)] + ([str(spec.path)] if spec else [])
+    label = f"simple_test({spec.name})" if spec else "simple_test"
+    text = run_process(cmd, cwd=binary.parent, env=_make_env(), timeout=60)
     if text and "All tests passed" in text:
         print(f"  {label}: PASS")
         return True
@@ -180,53 +212,65 @@ def run_simple_test(model_path: Path | None = None) -> bool:
     return False
 
 
-def run_lifecycle_test(model_path: Path | None) -> bool:
+def run_lifecycle_test(spec: ModelSpec | None = None) -> bool:
     binary = lifecycle_test_path()
     if not binary.exists():
         print(f"  lifecycle_test not found at {binary}")
         return False
-    env = os.environ.copy()
-    if not IS_WINDOWS:
-        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
-    cmd = [str(binary)] + ([str(model_path)] if model_path else [])
-    text = run_process(cmd, cwd=binary.parent, env=env, timeout=120)
+    cmd = [str(binary)]
+    if spec:
+        cmd += [str(spec.path), "--input-name", spec.input_name, "--imgsz", str(spec.input_size)]
+    label = f"lifecycle_test({spec.name})" if spec else "lifecycle_test"
+    text = run_process(cmd, cwd=binary.parent, env=_make_env(), timeout=120)
     if text and "All tests passed" in text:
-        print("  lifecycle_test: PASS")
+        print(f"  {label}: PASS")
         return True
-    print(f"  lifecycle_test: FAIL\n{text or ''}")
+    print(f"  {label}: FAIL\n{text or ''}")
     return False
 
 
-def run_multi_model_test(model_path: Path) -> bool:
+def run_multi_model_test(spec: ModelSpec) -> bool:
     binary = multi_model_test_path()
     if not binary.exists():
         print(f"  multi_model_test not found at {binary}")
         return False
-    env = os.environ.copy()
-    if not IS_WINDOWS:
-        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
-    text = run_process([str(binary), str(model_path)], cwd=binary.parent, env=env, timeout=180)
+    cmd = [str(binary), str(spec.path), "--input-name", spec.input_name, "--imgsz", str(spec.input_size)]
+    if spec.model_type != "yolo":
+        cmd += ["--no-validate"]
+    label = f"multi_model_test({spec.name})"
+    text = run_process(cmd, cwd=binary.parent, env=_make_env(), timeout=180)
     if text and "All tests passed" in text:
-        print("  multi_model_test: PASS")
+        print(f"  {label}: PASS")
         return True
-    print(f"  multi_model_test: FAIL\n{text or ''}")
+    print(f"  {label}: FAIL\n{text or ''}")
     return False
 
 
-def run_yolo_test(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz: int = 640) -> tuple | None:
+# ── Benchmark runners ─────────────────────────────────────────────────────────
+
+
+def run_oaax_benchmark(spec: ModelSpec, warmup: int, runs: int) -> tuple | None:
     binary = yolo_test_path()
     if not binary.exists():
         print(f"  [error] yolo_test binary not found: {binary}")
         return None
-    env = os.environ.copy()
-    if not IS_WINDOWS:
-        env["LD_LIBRARY_PATH"] = f"{TEST_BUILD_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
-    cmd = [str(binary), str(onnx_path), "--warmup", str(warmup), "--runs", str(runs)]
-    if batch > 1:
-        cmd += ["--batch", str(batch)]
-    if imgsz != 640:
-        cmd += ["--imgsz", str(imgsz)]
-    text = run_process(cmd, cwd=binary.parent, env=env, timeout=600 + runs * 2)
+    cmd = [
+        str(binary),
+        str(spec.path),
+        "--warmup",
+        str(warmup),
+        "--runs",
+        str(runs),
+        "--input-name",
+        spec.input_name,
+        "--imgsz",
+        str(spec.input_size),
+    ]
+    if spec.batch > 1:
+        cmd += ["--batch", str(spec.batch)]
+    if spec.model_type != "yolo":
+        cmd += ["--no-validate"]
+    text = run_process(cmd, cwd=binary.parent, env=_make_env(), timeout=600 + runs * 2)
     if not text or "=== Results ===" not in text:
         if text:
             print(f"  [output] {text}")
@@ -243,18 +287,14 @@ def run_yolo_test(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz
     return result
 
 
-# ── ORT Python baseline benchmark ─────────────────────────────────────────────
-
-
-def run_ort_benchmark(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz: int = 640) -> tuple | None:
+def run_ort_benchmark(spec: ModelSpec, warmup: int, runs: int) -> tuple | None:
     try:
         sess_opts = ort.SessionOptions()
         sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        sess = ort.InferenceSession(str(onnx_path), sess_options=sess_opts, providers=["CPUExecutionProvider"])
+        sess = ort.InferenceSession(str(spec.path), sess_options=sess_opts, providers=["CPUExecutionProvider"])
 
-        inp_name = sess.get_inputs()[0].name
-        data = np.random.rand(batch, 3, imgsz, imgsz).astype(np.float32)
-        feed = {inp_name: data}
+        data = np.random.rand(spec.batch, spec.input_channels, spec.input_size, spec.input_size).astype(np.float32)
+        feed = {spec.input_name: data}
 
         for _ in range(warmup):
             sess.run(None, feed)
@@ -269,7 +309,7 @@ def run_ort_benchmark(onnx_path: Path, warmup: int, runs: int, batch: int = 1, i
         avg = sum(latencies_ms) / len(latencies_ms)
         min_l = latencies_ms[0]
         p95 = latencies_ms[int(len(latencies_ms) * 0.95)]
-        fps = batch * 1000.0 / avg
+        fps = spec.batch * 1000.0 / avg
 
         return (f"{avg:.3f}", f"{min_l:.3f}", f"{p95:.3f}", f"{fps:.4f}")
     except Exception as e:
@@ -279,14 +319,14 @@ def run_ort_benchmark(onnx_path: Path, warmup: int, runs: int, batch: int = 1, i
 
 # ── Formatting ────────────────────────────────────────────────────────────────
 
-_HDR = "  {:<20}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
-_SEP = "  {:<20}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
-_ROW = "  {:<20}  {:>8}ms  {:>8}ms  {:>8} FPS  {:>8}ms  {:>8}ms  {:>8} FPS  {:>7}x"
+_HDR = "  {:<22}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
+_SEP = "  {:<22}  {:>9}  {:>9}  {:>10}  {:>9}  {:>9}  {:>10}  {:>8}"
+_ROW = "  {:<22}  {:>8}ms  {:>8}ms  {:>8} FPS  {:>8}ms  {:>8}ms  {:>8} FPS  {:>7}x"
 
 
 def print_table_header() -> None:
     print(_HDR.format("Model", "OAAX avg", "OAAX p95", "OAAX FPS", "ORT avg", "ORT p95", "ORT FPS", "speedup"))
-    print(_SEP.format("-" * 20, "-" * 9, "-" * 9, "-" * 10, "-" * 9, "-" * 9, "-" * 10, "-" * 8))
+    print(_SEP.format("-" * 22, "-" * 9, "-" * 9, "-" * 10, "-" * 9, "-" * 9, "-" * 10, "-" * 8))
 
 
 def speedup_str(oaax_avg: str, ort_avg: str) -> str:
@@ -326,9 +366,12 @@ def main() -> None:
         print("ERROR: tests/test_models/simplified/ not found or empty — run stage1 first")
         sys.exit(1)
 
-    models = get_simplified_models()
-    if not models:
-        print("ERROR: no recognized YOLO models found in simplified dir")
+    all_specs = get_all_model_specs()
+    yolo_specs = [s for s in all_specs if s.model_type == "yolo"]
+    cls_specs = [s for s in all_specs if s.model_type == "classification"]
+
+    if not yolo_specs:
+        print("ERROR: no recognised YOLO models found in simplified dir")
         sys.exit(1)
 
     csv_file = None
@@ -361,28 +404,35 @@ def main() -> None:
                     print("  Build failed — aborting")
                     sys.exit(1)
 
-            header("Step 1: C++ unit tests")
             cpp_failures = []
+
+            header("Step 1: C++ unit tests — no model")
             if not run_simple_test():
                 cpp_failures.append("simple_test")
-            first_model = models[0][0] if models else None
-            if not run_lifecycle_test(first_model):
+            if not run_lifecycle_test():
                 cpp_failures.append("lifecycle_test")
-            if first_model:
-                if not run_multi_model_test(first_model):
-                    cpp_failures.append("multi_model_test")
-            else:
-                print("  multi_model_test: skipped (no model available)")
 
-            cls_models = get_classification_models()
-            if cls_models:
-                header("Step 1b: C++ unit tests with classification models")
-                for onnx_path, model_name in cls_models:
-                    if not run_simple_test(onnx_path):
-                        cpp_failures.append(f"simple_test({model_name})")
+            header("Step 1b: C++ unit tests — YOLO models")
+            for spec in yolo_specs:
+                if not run_simple_test(spec):
+                    cpp_failures.append(f"simple_test({spec.name})")
+            if not run_lifecycle_test(yolo_specs[0]):
+                cpp_failures.append(f"lifecycle_test({yolo_specs[0].name})")
+            if not run_multi_model_test(yolo_specs[0]):
+                cpp_failures.append(f"multi_model_test({yolo_specs[0].name})")
+
+            if cls_specs:
+                header("Step 1c: C++ unit tests — classification models")
+                for spec in cls_specs:
+                    if not run_simple_test(spec):
+                        cpp_failures.append(f"simple_test({spec.name})")
+                    if not run_lifecycle_test(spec):
+                        cpp_failures.append(f"lifecycle_test({spec.name})")
+                    if not run_multi_model_test(spec):
+                        cpp_failures.append(f"multi_model_test({spec.name})")
 
             if cpp_failures:
-                print(f"\n  FAIL: {', '.join(cpp_failures)} failed")
+                print(f"\n  FAIL: {', '.join(cpp_failures)}")
                 sys.exit(1)
 
         header(f"Step 2: OAAX vs ORT  (warmup={args.warmup}, runs={args.runs})")
@@ -390,12 +440,9 @@ def main() -> None:
         print_table_header()
 
         pass_count = fail_count = 0
-        for onnx_path, model_name in models:
-            batch = 4 if model_name.endswith("_b4") else 1
-            imgsz = 320 if "_320" in model_name else 640
-
-            oaax_r = None if args.skip_runtime else run_yolo_test(onnx_path, args.warmup, args.runs, batch, imgsz)
-            ort_r = None if args.skip_ort else run_ort_benchmark(onnx_path, args.warmup, args.runs, batch, imgsz)
+        for spec in all_specs:
+            oaax_r = None if args.skip_runtime else run_oaax_benchmark(spec, args.warmup, args.runs)
+            ort_r = None if args.skip_ort else run_ort_benchmark(spec, args.warmup, args.runs)
 
             oaax_avg = oaax_r[0] if oaax_r else "n/a"
             oaax_p95 = oaax_r[2] if oaax_r else "n/a"
@@ -405,8 +452,8 @@ def main() -> None:
             ort_fps = ort_r[3] if ort_r else "n/a"
             spd = speedup_str(oaax_r[0], ort_r[0]) if (oaax_r and ort_r) else "n/a"
 
-            print(_ROW.format(model_name, oaax_avg, oaax_p95, oaax_fps, ort_avg, ort_p95, ort_fps, spd))
-            write_csv_row(csv_writer, model_name, oaax_r, ort_r)
+            print(_ROW.format(spec.name, oaax_avg, oaax_p95, oaax_fps, ort_avg, ort_p95, ort_fps, spd))
+            write_csv_row(csv_writer, spec.name, oaax_r, ort_r)
 
             if oaax_r or ort_r:
                 pass_count += 1

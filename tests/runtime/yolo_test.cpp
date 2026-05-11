@@ -6,7 +6,8 @@
  * Usage:
  *   ./yolo_test <model.onnx> [--runs N] [--warmup N] [--batch N]
  *               [--input-dtype f32|u8|f16] [--in-flight N] [--imgsz N]
- * Defaults: runs=30, warmup=5, batch=1, input-dtype=f32, in-flight=5, imgsz=640
+ *               [--input-name NAME] [--no-validate]
+ * Defaults: runs=30, warmup=5, batch=1, input-dtype=f32, in-flight=5, imgsz=640, input-name=images
  */
 
 #include <algorithm>
@@ -73,7 +74,7 @@ static void free_tensors(Tensors* t) {
     free(t);
 }
 
-static Tensors* make_yolo_input(int batch, int request_id, TensorElementType dtype, int imgsz) {
+static Tensors* make_input(int batch, int request_id, TensorElementType dtype, int imgsz, const char* input_name) {
     Tensors* ts = (Tensors*)malloc(sizeof(Tensors));
     if (!ts) return nullptr;
     ts->id = request_id;
@@ -85,7 +86,7 @@ static Tensors* make_yolo_input(int batch, int request_id, TensorElementType dty
     }
 
     TensorDescriptor& td = ts->tensors[0];
-    td.name = dup_str("images");
+    td.name = dup_str(input_name);
     td.data_type = dtype;
     td.rank = 4;
     td.shape = (int*)malloc(4 * sizeof(int));
@@ -129,7 +130,8 @@ static double percentile(std::vector<double> v, double p) {
  * Returns per-request latencies (ms), or empty on failure.
  */
 static std::vector<double> run_batch(int n, std::vector<Clock::time_point>& send_times, bool validate_first, int batch,
-                                     TensorElementType dtype, int imgsz, int max_in_flight = 1) {
+                                     TensorElementType dtype, int imgsz, int max_in_flight = 1,
+                                     const char* input_name = "images") {
     std::vector<double> latencies(n);
     std::atomic<bool> ok{true};
     std::atomic<int> in_flight{0};
@@ -140,7 +142,7 @@ static std::vector<double> run_batch(int n, std::vector<Clock::time_point>& send
                 if (!ok) return;
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
-            Tensors* input = make_yolo_input(batch, i, dtype, imgsz);
+            Tensors* input = make_input(batch, i, dtype, imgsz, input_name);
             if (!input) {
                 ok = false;
                 return;
@@ -193,17 +195,20 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0]
                   << " <model.onnx> [--runs N] [--warmup N] [--batch N]"
                      " [--input-dtype f32|u8|f16] [--in-flight N] [--imgsz N]"
+                     " [--input-name NAME] [--no-validate]"
                   << std::endl;
         return 1;
     }
 
     const char* model_path = argv[1];
     const char* input_dtype_str = "f32";
+    const char* input_name = "images";
     int runs = 30;
     int warmup = 5;
     int batch = 1;
     int in_flight = 5;
     int imgsz = 640;
+    bool no_validate = false;
 
     for (int i = 2; i < argc; ++i) {
         if (strcmp(argv[i], "--runs") == 0 && i + 1 < argc)
@@ -218,6 +223,10 @@ int main(int argc, char** argv) {
             in_flight = atoi(argv[++i]);
         else if (strcmp(argv[i], "--imgsz") == 0 && i + 1 < argc)
             imgsz = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--input-name") == 0 && i + 1 < argc)
+            input_name = argv[++i];
+        else if (strcmp(argv[i], "--no-validate") == 0)
+            no_validate = true;
     }
     TensorElementType input_dtype = parse_input_dtype(input_dtype_str);
 
@@ -252,7 +261,7 @@ int main(int argc, char** argv) {
     std::cout << "[3] Warming up (" << warmup << " runs)..." << std::endl;
     {
         std::vector<Clock::time_point> ts(warmup);
-        CHECK(!run_batch(warmup, ts, false, batch, input_dtype, imgsz, in_flight).empty(), "warmup failed");
+        CHECK(!run_batch(warmup, ts, false, batch, input_dtype, imgsz, in_flight, input_name).empty(), "warmup failed");
     }
     std::cout << "  Done" << std::endl;
 
@@ -261,7 +270,7 @@ int main(int argc, char** argv) {
               << std::endl;
     std::vector<Clock::time_point> send_times(runs);
     auto bench_start = Clock::now();
-    auto latencies = run_batch(runs, send_times, true, batch, input_dtype, imgsz, in_flight);
+    auto latencies = run_batch(runs, send_times, !no_validate, batch, input_dtype, imgsz, in_flight, input_name);
     double bench_ms = Ms(Clock::now() - bench_start).count();
     CHECK(!latencies.empty(), "benchmark failed");
 
