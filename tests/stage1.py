@@ -10,9 +10,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tests.models import download_model
-
 ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT))
+
+from tests.models import download_model  # noqa: E402
+
 SIMPLIFIED_DIR = ROOT / "tests" / "test_models" / "simplified"
 DOCKER_IMAGE = "oaax-cpu-toolchain:latest"
 CLASSIFICATION_MODELS = ["resnet18", "mobilenetv2", "squeezenet"]
