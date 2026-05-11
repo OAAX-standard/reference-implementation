@@ -176,7 +176,7 @@ def run_simple_test(model_path: Path | None = None) -> bool:
     if text and "All tests passed" in text:
         print(f"  {label}: PASS")
         return True
-    print(f"  {label}: FAIL\n{(text or '')[:400]}")
+    print(f"  {label}: FAIL\n{(text or '')[:2000]}")
     return False
 
 
@@ -193,7 +193,7 @@ def run_lifecycle_test(model_path: Path | None) -> bool:
     if text and "All tests passed" in text:
         print("  lifecycle_test: PASS")
         return True
-    print(f"  lifecycle_test: FAIL\n{(text or '')[:400]}")
+    print(f"  lifecycle_test: FAIL\n{(text or '')[:2000]}")
     return False
 
 
@@ -209,7 +209,7 @@ def run_multi_model_test(model_path: Path) -> bool:
     if text and "All tests passed" in text:
         print("  multi_model_test: PASS")
         return True
-    print(f"  multi_model_test: FAIL\n{(text or '')[:400]}")
+    print(f"  multi_model_test: FAIL\n{(text or '')[:2000]}")
     return False
 
 
@@ -229,7 +229,7 @@ def run_yolo_test(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz
     text = run_process(cmd, cwd=binary.parent, env=env, timeout=600 + runs * 2)
     if not text or "=== Results ===" not in text:
         if text:
-            print(f"  [output] {text[:400]}")
+            print(f"  [output] {text[:2000]}")
         return None
     result = (
         parse_field(text, r"Avg latency:\s+([\d.]+)"),
@@ -238,7 +238,7 @@ def run_yolo_test(onnx_path: Path, warmup: int, runs: int, batch: int = 1, imgsz
         parse_field(text, r"Throughput\s*:\s*([\d.]+)"),
     )
     if not any(result):
-        print(f"  [output] {text[:400]}")
+        print(f"  [output] {text[:2000]}")
         return None
     return result
 
