@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0]
                   << " <model.onnx> [--runs N] [--warmup N] [--batch N]"
                      " [--input-dtype f32|u8|f16] [--in-flight N] [--imgsz N]"
-                     " [--input-name NAME] [--no-validate]"
+                     " [--input-name NAME] [--no-validate] [--perf-mode eco|power]"
                   << std::endl;
         return 1;
     }
@@ -203,6 +203,7 @@ int main(int argc, char** argv) {
     const char* model_path = argv[1];
     const char* input_dtype_str = "f32";
     const char* input_name = "images";
+    const char* perf_mode = "eco";
     int runs = 30;
     int warmup = 5;
     int batch = 1;
@@ -225,6 +226,8 @@ int main(int argc, char** argv) {
             imgsz = atoi(argv[++i]);
         else if (strcmp(argv[i], "--input-name") == 0 && i + 1 < argc)
             input_name = argv[++i];
+        else if (strcmp(argv[i], "--perf-mode") == 0 && i + 1 < argc)
+            perf_mode = argv[++i];
         else if (strcmp(argv[i], "--no-validate") == 0)
             no_validate = true;
     }
@@ -237,13 +240,14 @@ int main(int argc, char** argv) {
     std::cout << "In-flight  : " << in_flight << std::endl;
     std::cout << "Image size : " << imgsz << "x" << imgsz << std::endl;
     std::cout << "Warmup     : " << warmup << " runs" << std::endl;
-    std::cout << "Runs       : " << runs << std::endl << std::endl;
+    std::cout << "Runs       : " << runs << std::endl;
+    std::cout << "Perf mode  : " << perf_mode << std::endl << std::endl;
 
     // ── 1. Init ───────────────────────────────────────────────────────────────
     std::cout << "[1] Initializing runtime..." << std::endl;
-    const char* init_keys[] = {"log_level"};
-    const char* init_vals[] = {"2"};
-    Config init_cfg = {1, init_keys, init_vals};
+    const char* init_keys[] = {"log_level", "perf_mode"};
+    const char* init_vals[] = {"2", perf_mode};
+    Config init_cfg = {2, init_keys, init_vals};
     CHECK(runtime_init(init_cfg) == RUNTIME_STATUS_SUCCESS, "runtime_init failed");
     std::cout << "  " << runtime_get_name() << " v" << runtime_get_version() << std::endl;
 
