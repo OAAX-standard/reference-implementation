@@ -309,14 +309,17 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
         ModelState* ms = nullptr;
 
         try {
-            int intra_threads = std::max(1, g_allotted_threads / num_models);
+            // Split the per-model budget 2:1 (intra:inter), keeping total ≤ budget.
+            int budget_per_model = std::max(2, g_allotted_threads / num_models);
+            int intra_threads = std::max(1, budget_per_model * 2 / 3);
+            int inter_threads = std::max(1, intra_threads / 2);
 
             ms = new ModelState();
             ms->id = m_idx;
             sem_init(&ms->input_sem, 0, 0);
             ms->session_options = std::make_unique<Ort::SessionOptions>();
             ms->session_options->SetIntraOpNumThreads(intra_threads);
-            ms->session_options->SetInterOpNumThreads(1);
+            ms->session_options->SetInterOpNumThreads(inter_threads);
             ms->session_options->SetGraphOptimizationLevel(ORT_ENABLE_ALL);
 
             if (mc.model_data && mc.model_size > 0) {
@@ -344,8 +347,8 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
             g_models.push_back(ms);
             ms->worker_thread = std::thread(worker_loop, m_idx);
-            g_logger->info("[model {}] Ready ({} inputs, {} outputs, {} intra-op threads)", m_idx,
-                           ms->input_names.size(), ms->output_names.size(), intra_threads);
+            g_logger->info("[model {}] Ready ({} inputs, {} outputs, intra={} inter={} threads)", m_idx,
+                           ms->input_names.size(), ms->output_names.size(), intra_threads, inter_threads);
         } catch (const std::exception& e) {
             set_error("Failed to load model " + std::to_string(m_idx) + ": " + e.what());
             if (ms) delete ms;
