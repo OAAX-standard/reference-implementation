@@ -75,6 +75,7 @@ struct ModelState {
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
     moodycamel::ConcurrentQueue<Tensors*> input_queue;
+    sem_t input_sem;
     std::atomic<bool> stop{false};
     std::thread worker_thread;
 };
@@ -100,7 +101,7 @@ static std::string g_info_json;
 
 static int g_log_level = spdlog::level::info;
 static std::string g_log_file = "runtime.log";
-static int g_num_threads = 4;
+static int g_allotted_threads = 0;  // set during init from perf_mode
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
@@ -183,12 +184,16 @@ static void worker_loop(int model_id) {
     ModelState& m = *g_models[model_id];
     Ort::MemoryInfo mem_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
 
-    while (!m.stop) {
+    while (true) {
+#ifndef _WIN32
+        while (sem_wait(&m.input_sem) == -1 && errno == EINTR) continue;
+#else
+        sem_wait(&m.input_sem);
+#endif
+        if (m.stop) break;
+
         Tensors* input = nullptr;
-        if (!m.input_queue.try_dequeue(input)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            continue;
-        }
+        if (!m.input_queue.try_dequeue(input)) continue;
 
         try {
             std::vector<const char*> input_name_ptrs;
@@ -255,20 +260,23 @@ RuntimeStatus runtime_init(Config config) {
         g_log_level = spdlog::level::info;
     }
 
-    try {
-        g_num_threads = std::stoi(config_get(config, "num_threads", "4"));
-        if (g_num_threads < 1) g_num_threads = 1;
-        if (g_num_threads > 16) g_num_threads = 16;
-    } catch (...) {
-        g_num_threads = 4;
+    std::string perf_mode = config_get(config, "perf_mode", "eco");
+    if (perf_mode != "eco" && perf_mode != "power") {
+        g_last_error = "perf_mode must be \"eco\" or \"power\", got: " + perf_mode;
+        return RUNTIME_STATUS_INVALID_ARGUMENT;
     }
+    double cpu_fraction = (perf_mode == "power") ? 0.9 : 0.4;
+    int logical_cores = (int)std::thread::hardware_concurrency();
+    if (logical_cores < 1) logical_cores = 1;
+    g_allotted_threads = std::max(1, (int)(logical_cores * cpu_fraction));
 
     try {
         g_logger = initialize_logger(g_log_file, g_log_level, g_log_level, runtime_get_name());
         g_logger->info("Initializing runtime");
-        g_logger->info("  log_level:   {}", g_log_level);
-        g_logger->info("  log_file:    {}", g_log_file);
-        g_logger->info("  num_threads: {}", g_num_threads);
+        g_logger->info("  log_level:       {}", g_log_level);
+        g_logger->info("  log_file:        {}", g_log_file);
+        g_logger->info("  perf_mode:       {} ({} of {} logical cores = {} threads)", perf_mode, cpu_fraction,
+                       logical_cores, g_allotted_threads);
 
         g_env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, runtime_get_name());
         g_initialized = true;
@@ -301,18 +309,15 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
         ModelState* ms = nullptr;
 
         try {
-            int num_threads = g_num_threads;
-            try {
-                num_threads = std::stoi(config_get(mc.config, "num_threads", std::to_string(g_num_threads)));
-                if (num_threads < 1) num_threads = 1;
-                if (num_threads > 16) num_threads = 16;
-            } catch (...) {
-            }
+            int intra_threads = std::max(1, g_allotted_threads / num_models);
 
             ms = new ModelState();
             ms->id = m_idx;
+            sem_init(&ms->input_sem, 0, 0);
             ms->session_options = std::make_unique<Ort::SessionOptions>();
-            ms->session_options->SetIntraOpNumThreads(num_threads);
+            ms->session_options->SetIntraOpNumThreads(intra_threads);
+            ms->session_options->SetInterOpNumThreads(1);
+            ms->session_options->SetGraphOptimizationLevel(ORT_ENABLE_ALL);
 
             if (mc.model_data && mc.model_size > 0) {
                 g_logger->info("[model {}] Loading from memory ({} bytes)", m_idx, mc.model_size);
@@ -339,8 +344,8 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
             g_models.push_back(ms);
             ms->worker_thread = std::thread(worker_loop, m_idx);
-            g_logger->info("[model {}] Ready ({} inputs, {} outputs, {} threads)", m_idx, ms->input_names.size(),
-                           ms->output_names.size(), num_threads);
+            g_logger->info("[model {}] Ready ({} inputs, {} outputs, {} intra-op threads)", m_idx,
+                           ms->input_names.size(), ms->output_names.size(), intra_threads);
         } catch (const std::exception& e) {
             set_error("Failed to load model " + std::to_string(m_idx) + ": " + e.what());
             if (ms) delete ms;
@@ -354,9 +359,11 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 fail:
     for (auto* ms : g_models) {
         ms->stop = true;
+        sem_post(&ms->input_sem);
         if (ms->worker_thread.joinable()) ms->worker_thread.join();
         Tensors* t;
         while (ms->input_queue.try_dequeue(t)) deep_free_tensors(t);
+        sem_destroy(&ms->input_sem);
         delete ms;
     }
     g_models.clear();
@@ -379,6 +386,7 @@ RuntimeStatus runtime_enqueue_input(int model_id, Tensors* input_tensors) {
         set_error("runtime_enqueue_input: input queue full");
         return RUNTIME_STATUS_ERROR;
     }
+    sem_post(&g_models[model_id]->input_sem);
     g_logger->trace("[model {}] Input queued (id={})", model_id, input_tensors->id);
     return RUNTIME_STATUS_SUCCESS;
 }
@@ -408,12 +416,14 @@ RuntimeStatus runtime_cleanup(void) {
 
     for (auto* ms : g_models) {
         ms->stop = true;
+        sem_post(&ms->input_sem);
         if (ms->worker_thread.joinable()) ms->worker_thread.join();
     }
 
     for (auto* ms : g_models) {
         Tensors* t;
         while (ms->input_queue.try_dequeue(t)) deep_free_tensors(t);
+        sem_destroy(&ms->input_sem);
         delete ms;
     }
     g_models.clear();
@@ -425,6 +435,7 @@ RuntimeStatus runtime_cleanup(void) {
     g_env.reset();
     g_initialized = false;
     g_models_loaded = false;
+    g_allotted_threads = 0;
     g_last_error.clear();
 
     g_logger->info("Runtime cleanup complete.");
