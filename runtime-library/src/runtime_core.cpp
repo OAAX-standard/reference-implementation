@@ -1,6 +1,5 @@
 #include <atomic>
 #include <climits>
-#include <cmath>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -72,13 +71,13 @@ static void deep_free_tensors(Tensors* t) {
 struct ModelState {
     int id{0};
     std::unique_ptr<Ort::SessionOptions> session_options;
-    std::unique_ptr<Ort::Session> session;
+    std::vector<std::unique_ptr<Ort::Session>> sessions;
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
     moodycamel::ConcurrentQueue<Tensors*> input_queue;
     sem_t input_sem;
     std::atomic<bool> stop{false};
-    std::thread worker_thread;
+    std::vector<std::thread> worker_threads;
 };
 
 struct OutputItem {
@@ -104,7 +103,7 @@ static int g_log_level = spdlog::level::info;
 static std::string g_log_file = "runtime.log";
 static int g_allotted_threads = 0;  // set during init from perf_mode
 static int g_override_intra = 0;    // 0 = use heuristic
-static int g_override_inter = 0;    // 0 = use heuristic
+static int g_num_replicas = 0;      // 0 = derive from perf_mode budget
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
@@ -183,7 +182,7 @@ static Tensors* build_output(int model_id, const std::vector<Ort::Value>& ort_ou
 
 // ─── Per-model worker thread ──────────────────────────────────────────────────
 
-static void worker_loop(int model_id) {
+static void worker_loop(int model_id, Ort::Session* session) {
     ModelState& m = *g_models[model_id];
     Ort::MemoryInfo mem_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
 
@@ -220,8 +219,8 @@ static void worker_loop(int model_id) {
             std::vector<const char*> output_name_ptrs;
             for (const auto& n : m.output_names) output_name_ptrs.push_back(n.c_str());
 
-            auto ort_outputs = m.session->Run(Ort::RunOptions{nullptr}, input_name_ptrs.data(), ort_inputs.data(),
-                                              ort_inputs.size(), output_name_ptrs.data(), output_name_ptrs.size());
+            auto ort_outputs = session->Run(Ort::RunOptions{nullptr}, input_name_ptrs.data(), ort_inputs.data(),
+                                            ort_inputs.size(), output_name_ptrs.data(), output_name_ptrs.size());
 
             int request_id = input->id;
             deep_free_tensors(input);
@@ -275,15 +274,15 @@ RuntimeStatus runtime_init(Config config) {
 
     try {
         int intra_override = std::stoi(config_get(config, "num_intra_threads", "0"));
-        int inter_override = std::stoi(config_get(config, "num_inter_threads", "0"));
-        if (intra_override < 0 || inter_override < 0) {
-            g_last_error = "num_intra_threads and num_inter_threads must be >= 0 (0 = use heuristic)";
+        int replicas = std::stoi(config_get(config, "num_replicas", "0"));
+        if (intra_override < 0 || replicas < 0) {
+            g_last_error = "num_intra_threads and num_replicas must be >= 0 (0 = use heuristic)";
             return RUNTIME_STATUS_INVALID_ARGUMENT;
         }
         g_override_intra = intra_override;
-        g_override_inter = inter_override;
+        g_num_replicas = replicas;
     } catch (...) {
-        g_last_error = "num_intra_threads and num_inter_threads must be integers";
+        g_last_error = "num_intra_threads and num_replicas must be integers";
         return RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
@@ -294,9 +293,9 @@ RuntimeStatus runtime_init(Config config) {
         g_logger->info("  log_file:        {}", g_log_file);
         g_logger->info("  perf_mode:       {} ({} of {} logical cores = {} threads)", perf_mode, cpu_fraction,
                        logical_cores, g_allotted_threads);
-        if (g_override_intra > 0 || g_override_inter > 0)
-            g_logger->info("  thread override: intra={} inter={}", g_override_intra > 0 ? g_override_intra : -1,
-                           g_override_inter > 0 ? g_override_inter : -1);
+        if (g_override_intra > 0 || g_num_replicas > 0)
+            g_logger->info("  thread override: intra={} replicas={}", g_override_intra > 0 ? g_override_intra : -1,
+                           g_num_replicas > 0 ? g_num_replicas : -1);
 
         g_env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, runtime_get_name());
         g_initialized = true;
@@ -324,16 +323,11 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
     sem_init(&g_output_sem, 0, 0);
 
-    // Total threads = inter × intra (each inter-op thread spawns intra threads).
-    // With intra = 2×inter: 2×inter² ≤ budget → inter ≤ sqrt(budget/2).
-    // When inter is capped at 2, give remaining budget to intra (intra = budget/2).
     int budget_per_model = std::max(1, g_allotted_threads / num_models);
-    int inter_threads = std::min(2, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
-    int intra_threads = (inter_threads < 2) ? 2 * inter_threads : budget_per_model / inter_threads;
-    if (g_override_intra > 0) intra_threads = g_override_intra;
-    if (g_override_inter > 0) inter_threads = g_override_inter;
-    g_logger->info("Loading {} model(s) — threads per model: intra={} inter={} (budget={}, total={})", num_models,
-                   intra_threads, inter_threads, budget_per_model, inter_threads * intra_threads);
+    int intra_threads = g_override_intra > 0 ? g_override_intra : 4;
+    int replicas = g_num_replicas > 0 ? g_num_replicas : std::max(1, budget_per_model / intra_threads);
+    g_logger->info("Loading {} model(s) — {} replica(s) per model, {} intra threads each (budget={})", num_models,
+                   replicas, intra_threads, budget_per_model);
 
     for (int m_idx = 0; m_idx < num_models; ++m_idx) {
         const ModelConfig& mc = model_configs[m_idx];
@@ -345,36 +339,44 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
             sem_init(&ms->input_sem, 0, 0);
             ms->session_options = std::make_unique<Ort::SessionOptions>();
             ms->session_options->SetIntraOpNumThreads(intra_threads);
-            ms->session_options->SetInterOpNumThreads(inter_threads);
+            ms->session_options->SetInterOpNumThreads(1);
             ms->session_options->SetGraphOptimizationLevel(ORT_ENABLE_ALL);
 
-            if (mc.model_data && mc.model_size > 0) {
-                g_logger->info("[model {}] Loading from memory ({} bytes)", m_idx, mc.model_size);
-                ms->session =
-                    std::make_unique<Ort::Session>(*g_env, mc.model_data, mc.model_size, *ms->session_options);
-            } else if (mc.file_path) {
-                g_logger->info("[model {}] Loading from: {}", m_idx, mc.file_path);
-#ifdef _WIN32
-                int n = MultiByteToWideChar(CP_UTF8, 0, mc.file_path, -1, nullptr, 0);
-                std::wstring wpath(n, 0);
-                MultiByteToWideChar(CP_UTF8, 0, mc.file_path, -1, &wpath[0], n);
-                ms->session = std::make_unique<Ort::Session>(*g_env, wpath.c_str(), *ms->session_options);
-#else
-                ms->session = std::make_unique<Ort::Session>(*g_env, mc.file_path, *ms->session_options);
-#endif
-            } else {
+            if (!mc.model_data && !mc.file_path) {
                 set_error("model_configs[" + std::to_string(m_idx) + "]: file_path and model_data are both null");
                 delete ms;
                 goto fail;
             }
 
-            ms->input_names = get_input_names(*ms->session);
-            ms->output_names = get_output_names(*ms->session);
+            for (int r = 0; r < replicas; ++r) {
+                if (mc.model_data && mc.model_size > 0) {
+                    if (r == 0)
+                        g_logger->info("[model {}] Loading from memory ({} bytes), {} replica(s)", m_idx, mc.model_size,
+                                       replicas);
+                    ms->sessions.push_back(
+                        std::make_unique<Ort::Session>(*g_env, mc.model_data, mc.model_size, *ms->session_options));
+                } else {
+                    if (r == 0)
+                        g_logger->info("[model {}] Loading from: {} ({} replica(s))", m_idx, mc.file_path, replicas);
+#ifdef _WIN32
+                    int n = MultiByteToWideChar(CP_UTF8, 0, mc.file_path, -1, nullptr, 0);
+                    std::wstring wpath(n, 0);
+                    MultiByteToWideChar(CP_UTF8, 0, mc.file_path, -1, &wpath[0], n);
+                    ms->sessions.push_back(std::make_unique<Ort::Session>(*g_env, wpath.c_str(), *ms->session_options));
+#else
+                    ms->sessions.push_back(std::make_unique<Ort::Session>(*g_env, mc.file_path, *ms->session_options));
+#endif
+                }
+            }
+
+            ms->input_names = get_input_names(*ms->sessions[0]);
+            ms->output_names = get_output_names(*ms->sessions[0]);
 
             g_models.push_back(ms);
-            ms->worker_thread = std::thread(worker_loop, m_idx);
-            g_logger->info("[model {}] Ready ({} inputs, {} outputs)", m_idx, ms->input_names.size(),
-                           ms->output_names.size());
+            for (int r = 0; r < replicas; ++r)
+                ms->worker_threads.emplace_back(worker_loop, m_idx, ms->sessions[r].get());
+            g_logger->info("[model {}] Ready ({} replica(s), {} inputs, {} outputs)", m_idx, replicas,
+                           ms->input_names.size(), ms->output_names.size());
         } catch (const std::exception& e) {
             set_error("Failed to load model " + std::to_string(m_idx) + ": " + e.what());
             if (ms) delete ms;
@@ -388,8 +390,9 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 fail:
     for (auto* ms : g_models) {
         ms->stop = true;
-        sem_post(&ms->input_sem);
-        if (ms->worker_thread.joinable()) ms->worker_thread.join();
+        for (size_t r = 0; r < ms->worker_threads.size(); ++r) sem_post(&ms->input_sem);
+        for (auto& t : ms->worker_threads)
+            if (t.joinable()) t.join();
         Tensors* t;
         while (ms->input_queue.try_dequeue(t)) deep_free_tensors(t);
         sem_destroy(&ms->input_sem);
@@ -445,8 +448,9 @@ RuntimeStatus runtime_cleanup(void) {
 
     for (auto* ms : g_models) {
         ms->stop = true;
-        sem_post(&ms->input_sem);
-        if (ms->worker_thread.joinable()) ms->worker_thread.join();
+        for (size_t r = 0; r < ms->worker_threads.size(); ++r) sem_post(&ms->input_sem);
+        for (auto& t : ms->worker_threads)
+            if (t.joinable()) t.join();
     }
 
     for (auto* ms : g_models) {
@@ -466,7 +470,7 @@ RuntimeStatus runtime_cleanup(void) {
     g_models_loaded = false;
     g_allotted_threads = 0;
     g_override_intra = 0;
-    g_override_inter = 0;
+    g_num_replicas = 0;
     g_last_error.clear();
 
     g_logger->info("Runtime cleanup complete.");
