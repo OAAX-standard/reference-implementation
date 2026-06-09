@@ -307,10 +307,10 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
     // Total threads = inter × intra (each inter-op thread spawns intra threads).
     // With intra = 2×inter: 2×inter² ≤ budget → inter ≤ sqrt(budget/2).
-    // When inter is capped at 4, give remaining budget to intra (intra = budget/4).
+    // When inter is capped at 2, give remaining budget to intra (intra = budget/2).
     int budget_per_model = std::max(1, g_allotted_threads / num_models);
-    int inter_threads = std::min(4, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
-    int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model / inter_threads;
+    int inter_threads = std::min(2, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
+    int intra_threads = (inter_threads < 2) ? 2 * inter_threads : budget_per_model / inter_threads;
     g_logger->info("Loading {} model(s) — threads per model: intra={} inter={} (budget={}, total={})", num_models,
                    intra_threads, inter_threads, budget_per_model, inter_threads * intra_threads);
 
