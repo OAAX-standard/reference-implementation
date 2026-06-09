@@ -309,10 +309,10 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
         ModelState* ms = nullptr;
 
         try {
-            // Split the per-model budget 2:1 (intra:inter), keeping total ≤ budget.
+            // inter in [1,4]; intra = 2*inter until inter is capped, then intra absorbs remaining budget.
             int budget_per_model = std::max(2, g_allotted_threads / num_models);
-            int intra_threads = std::max(1, budget_per_model * 2 / 3);
-            int inter_threads = std::max(1, intra_threads / 2);
+            int inter_threads = std::min(4, std::max(1, budget_per_model / 3));
+            int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model - inter_threads;
 
             ms = new ModelState();
             ms->id = m_idx;
