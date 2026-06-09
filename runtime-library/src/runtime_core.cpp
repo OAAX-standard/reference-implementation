@@ -1,5 +1,6 @@
 #include <atomic>
 #include <climits>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -309,10 +310,12 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
         ModelState* ms = nullptr;
 
         try {
-            // inter in [1,4]; intra = 2*inter until inter is capped, then intra absorbs remaining budget.
-            int budget_per_model = std::max(2, g_allotted_threads / num_models);
-            int inter_threads = std::min(4, std::max(1, budget_per_model / 3));
-            int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model - inter_threads;
+            // Total threads = inter × intra (each inter-op thread spawns intra threads).
+            // With intra = 2×inter: inter × 2×inter = 2×inter² ≤ budget → inter ≤ sqrt(budget/2).
+            // When inter is capped at 4, give remaining budget to intra (intra = budget/4).
+            int budget_per_model = std::max(1, g_allotted_threads / num_models);
+            int inter_threads = std::min(4, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
+            int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model / inter_threads;
 
             ms = new ModelState();
             ms->id = m_idx;
