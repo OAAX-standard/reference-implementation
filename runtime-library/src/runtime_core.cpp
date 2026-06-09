@@ -305,18 +305,20 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
     sem_init(&g_output_sem, 0, 0);
 
+    // Total threads = inter × intra (each inter-op thread spawns intra threads).
+    // With intra = 2×inter: 2×inter² ≤ budget → inter ≤ sqrt(budget/2).
+    // When inter is capped at 4, give remaining budget to intra (intra = budget/4).
+    int budget_per_model = std::max(1, g_allotted_threads / num_models);
+    int inter_threads = std::min(4, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
+    int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model / inter_threads;
+    g_logger->info("Loading {} model(s) — threads per model: intra={} inter={} (budget={}, total={})", num_models,
+                   intra_threads, inter_threads, budget_per_model, inter_threads * intra_threads);
+
     for (int m_idx = 0; m_idx < num_models; ++m_idx) {
         const ModelConfig& mc = model_configs[m_idx];
         ModelState* ms = nullptr;
 
         try {
-            // Total threads = inter × intra (each inter-op thread spawns intra threads).
-            // With intra = 2×inter: inter × 2×inter = 2×inter² ≤ budget → inter ≤ sqrt(budget/2).
-            // When inter is capped at 4, give remaining budget to intra (intra = budget/4).
-            int budget_per_model = std::max(1, g_allotted_threads / num_models);
-            int inter_threads = std::min(4, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
-            int intra_threads = (inter_threads < 4) ? 2 * inter_threads : budget_per_model / inter_threads;
-
             ms = new ModelState();
             ms->id = m_idx;
             sem_init(&ms->input_sem, 0, 0);
@@ -350,8 +352,8 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
 
             g_models.push_back(ms);
             ms->worker_thread = std::thread(worker_loop, m_idx);
-            g_logger->info("[model {}] Ready ({} inputs, {} outputs, intra={} inter={} threads)", m_idx,
-                           ms->input_names.size(), ms->output_names.size(), intra_threads, inter_threads);
+            g_logger->info("[model {}] Ready ({} inputs, {} outputs)", m_idx, ms->input_names.size(),
+                           ms->output_names.size());
         } catch (const std::exception& e) {
             set_error("Failed to load model " + std::to_string(m_idx) + ": " + e.what());
             if (ms) delete ms;
