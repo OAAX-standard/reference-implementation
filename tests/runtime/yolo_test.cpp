@@ -196,6 +196,7 @@ int main(int argc, char** argv) {
                   << " <model.onnx> [--runs N] [--warmup N] [--batch N]"
                      " [--input-dtype f32|u8|f16] [--in-flight N] [--imgsz N]"
                      " [--input-name NAME] [--no-validate] [--perf-mode eco|power]"
+                     " [--intra-threads N] [--inter-threads N]"
                   << std::endl;
         return 1;
     }
@@ -204,6 +205,8 @@ int main(int argc, char** argv) {
     const char* input_dtype_str = "f32";
     const char* input_name = "images";
     const char* perf_mode = "eco";
+    const char* intra_threads = "0";
+    const char* inter_threads = "0";
     int runs = 30;
     int warmup = 5;
     int batch = 1;
@@ -228,6 +231,10 @@ int main(int argc, char** argv) {
             input_name = argv[++i];
         else if (strcmp(argv[i], "--perf-mode") == 0 && i + 1 < argc)
             perf_mode = argv[++i];
+        else if (strcmp(argv[i], "--intra-threads") == 0 && i + 1 < argc)
+            intra_threads = argv[++i];
+        else if (strcmp(argv[i], "--inter-threads") == 0 && i + 1 < argc)
+            inter_threads = argv[++i];
         else if (strcmp(argv[i], "--no-validate") == 0)
             no_validate = true;
     }
@@ -241,13 +248,16 @@ int main(int argc, char** argv) {
     std::cout << "Image size : " << imgsz << "x" << imgsz << std::endl;
     std::cout << "Warmup     : " << warmup << " runs" << std::endl;
     std::cout << "Runs       : " << runs << std::endl;
-    std::cout << "Perf mode  : " << perf_mode << std::endl << std::endl;
+    std::cout << "Perf mode  : " << perf_mode << std::endl;
+    if (atoi(intra_threads) > 0) std::cout << "Intra thds : " << intra_threads << " (override)" << std::endl;
+    if (atoi(inter_threads) > 0) std::cout << "Inter thds : " << inter_threads << " (override)" << std::endl;
+    std::cout << std::endl;
 
     // ── 1. Init ───────────────────────────────────────────────────────────────
     std::cout << "[1] Initializing runtime..." << std::endl;
-    const char* init_keys[] = {"log_level", "perf_mode"};
-    const char* init_vals[] = {"2", perf_mode};
-    Config init_cfg = {2, init_keys, init_vals};
+    const char* init_keys[] = {"log_level", "perf_mode", "num_intra_threads", "num_inter_threads"};
+    const char* init_vals[] = {"2", perf_mode, intra_threads, inter_threads};
+    Config init_cfg = {4, init_keys, init_vals};
     CHECK(runtime_init(init_cfg) == RUNTIME_STATUS_SUCCESS, "runtime_init failed");
     std::cout << "  " << runtime_get_name() << " v" << runtime_get_version() << std::endl;
 

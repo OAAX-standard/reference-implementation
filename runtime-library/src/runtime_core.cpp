@@ -103,6 +103,8 @@ static std::string g_info_json;
 static int g_log_level = spdlog::level::info;
 static std::string g_log_file = "runtime.log";
 static int g_allotted_threads = 0;  // set during init from perf_mode
+static int g_override_intra = 0;    // 0 = use heuristic
+static int g_override_inter = 0;    // 0 = use heuristic
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
@@ -272,12 +274,29 @@ RuntimeStatus runtime_init(Config config) {
     g_allotted_threads = std::max(1, (int)(logical_cores * cpu_fraction));
 
     try {
+        int intra_override = std::stoi(config_get(config, "num_intra_threads", "0"));
+        int inter_override = std::stoi(config_get(config, "num_inter_threads", "0"));
+        if (intra_override < 0 || inter_override < 0) {
+            g_last_error = "num_intra_threads and num_inter_threads must be >= 0 (0 = use heuristic)";
+            return RUNTIME_STATUS_INVALID_ARGUMENT;
+        }
+        g_override_intra = intra_override;
+        g_override_inter = inter_override;
+    } catch (...) {
+        g_last_error = "num_intra_threads and num_inter_threads must be integers";
+        return RUNTIME_STATUS_INVALID_ARGUMENT;
+    }
+
+    try {
         g_logger = initialize_logger(g_log_file, g_log_level, g_log_level, runtime_get_name());
         g_logger->info("Initializing runtime");
         g_logger->info("  log_level:       {}", g_log_level);
         g_logger->info("  log_file:        {}", g_log_file);
         g_logger->info("  perf_mode:       {} ({} of {} logical cores = {} threads)", perf_mode, cpu_fraction,
                        logical_cores, g_allotted_threads);
+        if (g_override_intra > 0 || g_override_inter > 0)
+            g_logger->info("  thread override: intra={} inter={}", g_override_intra > 0 ? g_override_intra : -1,
+                           g_override_inter > 0 ? g_override_inter : -1);
 
         g_env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, runtime_get_name());
         g_initialized = true;
@@ -311,6 +330,8 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
     int budget_per_model = std::max(1, g_allotted_threads / num_models);
     int inter_threads = std::min(2, std::max(1, (int)std::sqrt(budget_per_model / 2.0)));
     int intra_threads = (inter_threads < 2) ? 2 * inter_threads : budget_per_model / inter_threads;
+    if (g_override_intra > 0) intra_threads = g_override_intra;
+    if (g_override_inter > 0) inter_threads = g_override_inter;
     g_logger->info("Loading {} model(s) — threads per model: intra={} inter={} (budget={}, total={})", num_models,
                    intra_threads, inter_threads, budget_per_model, inter_threads * intra_threads);
 
@@ -444,6 +465,8 @@ RuntimeStatus runtime_cleanup(void) {
     g_initialized = false;
     g_models_loaded = false;
     g_allotted_threads = 0;
+    g_override_intra = 0;
+    g_override_inter = 0;
     g_last_error.clear();
 
     g_logger->info("Runtime cleanup complete.");
