@@ -27,6 +27,23 @@ import numpy as np
 import onnxruntime as ort
 
 ROOT = Path(__file__).parent.parent
+_GIT_COMMIT = None
+
+
+def git_commit() -> str:
+    """Short hash of HEAD, so results can be traced to the code they measured."""
+    global _GIT_COMMIT
+    if _GIT_COMMIT is None:
+        try:
+            r = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT, timeout=5
+            )
+            _GIT_COMMIT = r.stdout.strip() or "unknown"
+        except Exception:
+            _GIT_COMMIT = "unknown"
+    return _GIT_COMMIT
+
+
 SIMPLIFIED_DIR = ROOT / "tests" / "test_models" / "simplified"
 RUNTIME_BUILD_DIR = ROOT / "runtime-library" / "build"
 TEST_BUILD_DIR = ROOT / "tests" / "runtime" / "build"
@@ -342,6 +359,7 @@ def write_csv_row(writer, model: str, oaax: tuple | None, ort_r: tuple | None) -
         return
     row = {
         "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": git_commit(),
         "model": model,
         "oaax_avg_ms": oaax[0] if oaax else "",
         "oaax_min_ms": oaax[1] if oaax else "",
@@ -361,6 +379,8 @@ def write_csv_row(writer, model: str, oaax: tuple | None, ort_r: tuple | None) -
 
 def main() -> None:
     args = parse_args()
+
+    print(f"Benchmarking commit {git_commit()} — {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}")
 
     if not SIMPLIFIED_DIR.exists() or not any(SIMPLIFIED_DIR.glob("*-simplified.onnx")):
         print("ERROR: tests/test_models/simplified/ not found or empty — run stage1 first")
@@ -382,6 +402,7 @@ def main() -> None:
             csv_file,
             fieldnames=[
                 "timestamp",
+                "commit",
                 "model",
                 "oaax_avg_ms",
                 "oaax_min_ms",
