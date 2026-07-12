@@ -1,7 +1,6 @@
 ---
 name: implement
 description: Implement a feature or fix in the OAAX runtime library or conversion toolchain
-model: sonnet
 effort: high
 ---
 

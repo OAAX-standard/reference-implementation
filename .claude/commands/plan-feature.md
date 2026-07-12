@@ -1,7 +1,6 @@
 ---
 name: plan-feature
 description: Plan the implementation of a new feature or significant change in the OAAX reference implementation
-model: sonnet
 effort: high
 ---
 

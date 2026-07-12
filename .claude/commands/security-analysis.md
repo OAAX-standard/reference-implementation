@@ -1,7 +1,6 @@
 ---
 name: security-analysis
 description: Run a security audit of the OAAX reference implementation — dependencies, C++ memory safety, Python input validation, CI/CD secrets, Docker hygiene
-model: sonnet
 effort: high
 ---
 

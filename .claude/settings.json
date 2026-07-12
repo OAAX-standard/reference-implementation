@@ -1,5 +1,4 @@
 {
-  "model": "sonnet",
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -24,5 +23,8 @@
       "Bash(gcc --version)",
       "Bash(g++ --version)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }

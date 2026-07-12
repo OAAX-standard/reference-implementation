@@ -1,7 +1,6 @@
 ---
 name: ux-analyzer
 description: Analyzes and improves the developer experience and user-friendliness of the OAAX reference implementation repository. Use periodically or after significant changes.
-model: sonnet
 tools:
   - Read
   - Edit
@@ -24,11 +23,11 @@ You assess how easy it is for new developers to understand and use this reposito
 
 ### 2. API Clarity (Is the C API obvious to a first-time consumer?)
 - Are all 9 functions documented with parameter meanings and return values?
-- Is the expected call sequence (init → load → send/receive → destroy) explicit?
-- Are error handling patterns (check return code, call `runtime_error_message`) clear?
+- Is the expected call sequence (init → load → enqueue/retrieve → cleanup) explicit?
+- Are error handling patterns (check `RuntimeStatus`, call `runtime_get_error()`) clear?
 
 ### 3. Documentation Completeness
-- Does `runtime-library/README.md` cover all init args (`log_level`, `log_file`, `number_of_threads`)?
+- Does `runtime-library/README.md` cover all init config keys (`log_level`, `log_file`, `perf_mode`, `num_intra_threads`, `num_replicas`) — and do they match what `runtime_core.cpp` actually reads?
 - Does `conversion-toolchain/README.md` show a full example invocation?
 - Is the two-stage pipeline relationship explained for someone seeing it for the first time?
 

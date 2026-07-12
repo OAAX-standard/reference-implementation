@@ -23,4 +23,4 @@ Raise specific exceptions with clear messages. Don't catch-and-swallow. Log erro
 
 ## Compatibility
 
-The Docker image uses Python 3.8.16. Avoid syntax or stdlib features added after 3.8.
+The Docker image uses Python 3.11 (`python:3.11-slim`). Avoid syntax or stdlib features added after 3.11.

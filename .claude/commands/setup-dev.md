@@ -1,7 +1,6 @@
 ---
 name: setup-dev
 description: Set up or validate the OAAX development environment on this machine
-model: sonnet
 effort: medium
 ---
 

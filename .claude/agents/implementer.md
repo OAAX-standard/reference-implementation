@@ -1,7 +1,6 @@
 ---
 name: implementer
 description: Implements features and fixes in the OAAX runtime library and conversion toolchain. Use after a plan exists (from feature-planner) or for straightforward bug fixes.
-model: sonnet
 tools:
   - Read
   - Edit
@@ -46,12 +45,21 @@ bash conversion-toolchain/build-toolchain.sh
 - One logical change per session; don't combine unrelated fixes
 - After each file edit, confirm the change compiles before moving to the next file
 
+## Test After Changes
+
+```bash
+uv run pytest tests/ -q                  # Python suites
+bash tests/runtime/build-tests.sh        # C++ tests (after runtime changes)
+```
+
 ## Common Patterns
 
-**Adding a new init arg** (C++):
-- Parse it from the `Config` struct in `runtime_init()` in `runtime_core.cpp`
-- Store it in the session state struct
-- Document it in `runtime-library/README.md`
+**Adding a new init config key** (C++):
+- Read it via `config_get()` in `runtime_init()` in `runtime_core.cpp`
+- Validate it and store it in the runtime state
+- Document it in ALL of: the `runtime_init` doc comment in `oaax_runtime.h`,
+  `runtime-library/README.md`, and root `CLAUDE.md` — these three must always
+  list the same keys as the code
 
 **Adding a conversion step** (Python):
 - Add logic in `utils.py`

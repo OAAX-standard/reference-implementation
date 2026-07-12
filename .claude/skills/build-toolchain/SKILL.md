@@ -16,7 +16,8 @@ Output: `conversion-toolchain/artifacts/oaax-cpu-toolchain.tar`
 ## Prerequisites
 
 - Docker must be running (`docker --version` to verify)
-- The script builds a Python 3.8.16 Debian-based image
+- The script builds a `python:3.11-slim` based image, tagged
+  `oaax-cpu-toolchain:$(cat VERSION)` and `oaax-cpu-toolchain:latest`
 
 ## What the Build Does
 
@@ -29,8 +30,12 @@ Output: `conversion-toolchain/artifacts/oaax-cpu-toolchain.tar`
 
 ```bash
 docker load < conversion-toolchain/artifacts/oaax-cpu-toolchain.tar
-docker run --rm oaax-cpu-toolchain --help
+docker run --rm oaax-cpu-toolchain:latest --help
 ```
+
+The image runs as `appuser` (uid 1000). When mounting host directories, pass
+`--user "$(id -u):$(id -g)"` or the container can't read/write them (Python
+tempdirs are mode 700). Tests do this via `tests/docker_utils.py`.
 
 ## Python Package Structure
 

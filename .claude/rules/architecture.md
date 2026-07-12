@@ -4,9 +4,13 @@
 
 The 9 functions in `runtime-library/include/oaax_runtime.h` are public API. **Never change existing signatures.** New arguments must go through the `Config` key-value struct passed to `runtime_init()`.
 
+## Config Key Documentation Sync
+
+Any change to the config keys read via `config_get()` in `runtime_core.cpp` MUST update, in the same commit: the `runtime_init` doc comment in `oaax_runtime.h`, the config table in `runtime-library/README.md`, and root `CLAUDE.md`. Stale key docs cause silent no-op configs for API consumers.
+
 ## Threading
 
-All inference runs on a single dedicated thread spawned at initialization. Input arrives via `moodycamel::ConcurrentQueue`, output is returned via a second queue. Do not add synchronous inference paths that bypass this model.
+Inference runs on replica worker threads — N replicas per model, spawned by `runtime_load_models()` (N from the `perf_mode` CPU budget or the `num_replicas` override; ONNX Runtime inter-op threads are fixed at 1). Input arrives via `moodycamel::ConcurrentQueue`, workers wake via semaphore, output is returned via a second queue. Do not add synchronous inference paths that bypass this model.
 
 ## Dependencies
 

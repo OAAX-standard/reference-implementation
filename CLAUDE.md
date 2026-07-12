@@ -60,7 +60,7 @@ ONNX Model → [Conversion Toolchain] → Optimized ONNX → [Runtime Library] �
 - `logger.py`: JSON-based logging that records each conversion step
 
 **Runtime Library** (`runtime-library/src/`):
-- `runtime_core.cpp`: Implements the 9-function C API; manages the ONNX Runtime session, a single inference thread, and two lock-free queues (input/output) via `moodycamel::ConcurrentQueue`
+- `runtime_core.cpp`: Implements the 9-function C API; manages ONNX Runtime sessions (N replicas per model), their worker threads, and two lock-free queues (input/output) via `moodycamel::ConcurrentQueue`
 - `runtime_utils.cpp`: Type mapping between the internal `tensor_data_type` enum and ONNX element types; spdlog initialization
 
 ### C API (`runtime-library/include/oaax_runtime.h`)
@@ -77,13 +77,13 @@ const char *runtime_get_name(void);
 const char *runtime_get_info(void);
 ```
 
-`Config` is a `{length, keys[], values[]}` key-value struct. Supported init keys: `log_level`, `log_file`, `num_threads`. `ModelConfig` carries `file_path`, optional `model_data`/`model_size` for in-memory load, and a per-model `Config`.
+`Config` is a `{length, keys[], values[]}` key-value struct. Supported init keys: `log_level` (0–6), `log_file`, `perf_mode` (`eco`|`power`), `num_intra_threads` (0 = heuristic), `num_replicas` (0 = heuristic). These keys must stay in sync with `config_get()` calls in `runtime_core.cpp` — update the header comment, `runtime-library/README.md`, and this file together. `ModelConfig` carries `file_path`, optional `model_data`/`model_size` for in-memory load, and a per-model `Config`.
 
 ### Threading Model
 
-- `runtime_init()` spawns one inference thread per loaded model.
-- `runtime_enqueue_input()` pushes to a lock-free queue; the worker dequeues, runs the ONNX Runtime session, and pushes output.
-- `runtime_retrieve_output()` pops output (blocking with `timeout_ms`; pass `timeout_ms=1` to poll non-blocking).
+- `runtime_load_models()` spawns N replica worker threads per model (N from the `perf_mode` CPU budget, or the `num_replicas` override). ONNX Runtime inter-op threads are fixed at 1; throughput scales via replicas.
+- `runtime_enqueue_input()` pushes to a lock-free queue; a worker wakes via semaphore, runs its session replica, and pushes output.
+- `runtime_retrieve_output()` pops output (blocking up to `timeout_ms`; pass `timeout_ms=0` to poll non-blocking).
 
 ### Cross-Compilation
 
@@ -91,16 +91,16 @@ CMake uses GCC toolchains from `/opt/`:
 - X86_64: `x86_64-unknown-linux-gnu-gcc-9.5.0` with `-march=haswell`
 - AARCH64: `gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu`
 
-Pre-built third-party libraries (ONNX Runtime 1.16.3/1.21.1, RE2, cpuinfo) live in `runtime-library/deps/`.
+Pre-built third-party libraries (ONNX Runtime 1.21.1, RE2, cpuinfo) live in `runtime-library/deps/`.
 
 ### CI/CD
 
 `.github/workflows/` has three pipelines:
-- `build-runtime.yml`: CMake builds for Linux (X86_64, AARCH64) and Windows MSVC; uploads artifacts to S3.
-- `build-toolchain.yml`: Docker image build; uploads to S3.
+- `ci.yml`: builds (Linux X86_64/AARCH64, Windows MSVC, toolchain Docker image), then Stage 1 (conversion tests + model simplification) and Stage 2 (runtime benchmarks on Linux x86_64/arm64 and Windows).
+- `lint.yml`: pre-commit — ruff, clang-format, shellcheck, hadolint.
 - `delete-temporary-artifacts.yml`: S3 cleanup for old PR artifacts.
 
-Main branch artifacts go to `s3://oaax/runtimes/latest/` and a versioned path; PR builds go to the versioned path only.
+A `DCO` app check requires every commit's sign-off to match its author. Note: if a PR is `CONFLICTING` with main, `pull_request` workflows silently don't run at all — resolve the conflict first.
 
 ## Testing
 
@@ -120,7 +120,7 @@ C++ tests: `bash tests/runtime/build-tests.sh` then run binaries from `tests/run
 - **Commit** freely after every logical set of changes — no need to ask. Always sign off commits (`git commit -s`) and include Claude as co-author. The sign-off MUST exactly match the commit author's `git config user.name`/`user.email` — never a placeholder or a different identity — or the DCO check fails (see `.claude/rules/git-signoff.md`). Every commit message must end with:
   ```
   Signed-off-by: <git config user.name> <git config user.email>
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+  Co-Authored-By: <the Claude model in use, e.g. Claude Fable 5> <noreply@anthropic.com>
   ```
 - **Push** the current branch freely at any time.
 - **PRs**: notify the maintainer before creating one, then manage it autonomously — push follow-up commits, monitor CI workflows, respond to failures.

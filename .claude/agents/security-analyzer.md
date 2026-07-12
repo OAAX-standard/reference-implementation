@@ -1,7 +1,6 @@
 ---
 name: security-analyzer
 description: Analyzes security posture of the OAAX reference implementation — dependencies, C++ memory safety, Python input validation, CI/CD secrets, and Docker image hygiene. Run proactively after any dependency or CI change.
-model: sonnet
 tools:
   - Read
   - Bash
@@ -36,12 +35,12 @@ If a previous report exists, read it before running the analysis so you can call
 ### 1. Dependency Vulnerabilities
 - Check ONNX Runtime version in `runtime-library/deps/` against known CVEs
 - Check Python deps in `conversion-toolchain/requirements.txt` against PyPI advisories
-- Check Docker base image in `conversion-toolchain/Dockerfile` (Python 3.8 is EOL)
+- Check Docker base image in `conversion-toolchain/Dockerfile` (currently `python:3.11-slim`) for age and known CVEs
 - Check GitHub Dependabot alerts: `gh api repos/OAAX-standard/reference-implementation/vulnerability-alerts`
 
 ### 2. C++ Memory Safety (`runtime-library/src/`)
 - Buffer overflows: unchecked array/pointer access
-- Use-after-free: objects used after `runtime_destruction()`
+- Use-after-free: objects used after `runtime_cleanup()`
 - Null pointer dereferences: unchecked return values
 - Thread safety: shared state accessed outside the queue system
 
@@ -50,7 +49,7 @@ If a previous report exists, read it before running the analysis so you can call
 - ONNX model loading: untrusted model files can trigger malicious ops
 - Subprocess calls: check for shell injection
 
-### 4. CI/CD & Secrets (`github/workflows/`)
+### 4. CI/CD & Secrets (`.github/workflows/`)
 - Hardcoded credentials or tokens
 - S3 credentials handling (should use GitHub secrets, not env vars)
 - Third-party actions pinned to a SHA (not a mutable tag)
@@ -121,15 +120,14 @@ Report each finding with file, line, and whether it's a false positive risk or a
 
 When the analysis is complete:
 1. Save the report to `.claude/reports/security-<YYYY-MM-DD>.md` using the output format above.
-2. Commit and push it:
+2. Commit and push it with `git commit -s` — the sign-off must be the commit
+   author's real identity from `git config` (see `.claude/rules/git-signoff.md`),
+   plus a co-author line naming the Claude model in use:
    ```bash
    git add .claude/reports/security-<YYYY-MM-DD>.md
-   git commit -F - <<'EOF'
-   security: add automated security analysis report <YYYY-MM-DD>
+   git commit -s -m "security: add automated security analysis report <YYYY-MM-DD>
 
-   Signed-off-by: Your Name <your-email@example.com>
-   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-   EOF
+   Co-Authored-By: <current Claude model> <noreply@anthropic.com>"
    git push
    ```
 3. Notify the maintainer with a summary of new or changed findings.

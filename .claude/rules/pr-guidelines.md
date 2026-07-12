@@ -2,7 +2,7 @@
 
 ## Title Format
 
-`<type>: <short description>` — e.g., `feat: add num_threads init arg` or `fix: correct AARCH64 alignment`.
+`<type>: <short description>` — e.g., `feat: add perf_mode init key` or `fix: correct AARCH64 alignment`.
 
 Types: `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`.
 
@@ -29,9 +29,10 @@ Types: `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`.
 
 ## CI Requirements
 
-Before merging, both GitHub Actions workflows must pass:
-- `build-runtime.yml` (Linux + Windows builds)
-- `build-toolchain.yml` (Docker image build)
+Before merging, all checks must pass:
+- `ci.yml` — builds (Linux, Windows, toolchain image) + Stage 1 conversion tests + Stage 2 runtime benchmarks
+- `lint.yml` — pre-commit (ruff, clang-format, shellcheck, hadolint)
+- `DCO` — every commit signed off with the author's own identity (see [[git-signoff]] / `.claude/rules/git-signoff.md`)
 
 ## Branch Naming
 
