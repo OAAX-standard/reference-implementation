@@ -6,17 +6,16 @@ simplified_yolo_models runs all YOLO variants through the Docker toolchain
 Stage 1 populates this cache; Stage 2 reads from it without re-converting.
 """
 
-import os
 import subprocess
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from tests.docker_utils import DOCKER_IMAGE, NO_CACHE, check_image, docker_user_args
 from tests.models import download_model
 
 SIMPLIFIED_DIR = Path(__file__).parent / "test_models" / "simplified"
-DOCKER_IMAGE = "oaax-cpu-toolchain:latest"
 
 YOLO_MODELS = ["yolov8n", "yolo11n", "yolo11s"]
 YOLO_MODELS_B4 = ["yolo11n_b4", "yolo11s_b4"]
@@ -24,22 +23,11 @@ YOLO_MODELS_320 = ["yolo11n_320", "yolo11s_320"]
 YOLO_MODELS_320_B4 = ["yolo11n_320_b4", "yolo11s_320_b4"]
 
 
-def _docker_image_available() -> bool:
-    try:
-        r = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
-        if r.returncode != 0:
-            return False
-        r = subprocess.run(["docker", "images", "-q", DOCKER_IMAGE], capture_output=True, text=True, timeout=5)
-        return bool(r.stdout.strip())
-    except Exception:
-        return False
-
-
 def _simplify_with_docker(model_name: str, onnx_path: Path, out_dir: Path) -> Path:
     """Simplify one model via the Docker toolchain image. Returns path to output .onnx."""
     out_dir.mkdir(parents=True, exist_ok=True)
     dest = out_dir / f"{model_name}-simplified.onnx"
-    if dest.exists():
+    if dest.exists() and not NO_CACHE:
         return dest
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -50,16 +38,12 @@ def _simplify_with_docker(model_name: str, onnx_path: Path, out_dir: Path) -> Pa
         docker_out = tmp_path / "output"
         docker_out.mkdir()
 
-        # tempfile dirs are mode 700, owned by the host user. The image runs as
-        # uid 1000 (appuser), which can't read /input or write /output unless the
-        # container runs as the host user.
         result = subprocess.run(
             [
                 "docker",
                 "run",
                 "--rm",
-                "--user",
-                f"{os.getuid()}:{os.getgid()}",
+                *docker_user_args(),
                 "-v",
                 f"{tmp_path}:/input",
                 "-v",
@@ -90,10 +74,9 @@ def _simplify_with_docker(model_name: str, onnx_path: Path, out_dir: Path) -> Pa
 
 def _build_fixture(model_list: list) -> dict:
     """Download and simplify each model in model_list. Returns {model_name: Path}."""
-    if not _docker_image_available():
-        pytest.skip(
-            f"Docker image '{DOCKER_IMAGE}' not available. Build with: bash conversion-toolchain/build-toolchain.sh"
-        )
+    image_problem = check_image()
+    if image_problem:
+        pytest.skip(image_problem)
 
     try:
         import ultralytics  # noqa: F401

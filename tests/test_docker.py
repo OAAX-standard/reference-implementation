@@ -10,7 +10,6 @@ Prerequisites:
 """
 
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -19,29 +18,15 @@ from pathlib import Path
 
 import pytest
 
+from tests.docker_utils import DOCKER_IMAGE, check_image, docker_user_args
 from tests.models import download_model
-
-DOCKER_IMAGE = "oaax-cpu-toolchain:latest"
-
-
-def _docker_available() -> bool:
-    try:
-        r = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
-        if r.returncode != 0:
-            return False
-        r = subprocess.run(["docker", "images", "-q", DOCKER_IMAGE], capture_output=True, text=True, timeout=5)
-        return bool(r.stdout.strip())
-    except Exception:
-        return False
 
 
 @pytest.fixture(scope="session")
 def docker_check():
-    if not _docker_available():
-        pytest.skip(
-            f"Docker not available or image '{DOCKER_IMAGE}' not built. "
-            f"Build with: bash conversion-toolchain/build-toolchain.sh"
-        )
+    image_problem = check_image()
+    if image_problem:
+        pytest.skip(image_problem)
 
 
 @pytest.fixture
@@ -66,15 +51,12 @@ def sample_model():
 
 
 def _run_docker(inp: Path, out: Path, model_filename: str, timeout: int = 120) -> subprocess.CompletedProcess:
-    # run as the host user so the image's appuser (uid 1000) uid mismatch
-    # doesn't block reading /input or writing /output
     return subprocess.run(
         [
             "docker",
             "run",
             "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
+            *docker_user_args(),
             "-v",
             f"{inp}:/input",
             "-v",

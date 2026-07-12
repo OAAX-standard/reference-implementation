@@ -8,6 +8,14 @@ This document describes all tests in the OAAX reference implementation.
 
 Run with: `uv run pytest tests/`
 
+Docker-based tests verify that `oaax-cpu-toolchain:latest` matches the image
+tagged with the current `VERSION` and skip with a rebuild hint if it's stale —
+a stale local image can pass tests that fail in CI.
+
+Simplified models are cached in `tests/test_models/simplified/`. Set
+`OAAX_TEST_NO_CACHE=1` to bypass the cache and re-convert through Docker —
+do this whenever the toolchain image or conversion code changed.
+
 ### `test_conversion.py` — Conversion toolchain unit tests
 
 **`TestSimplification`**

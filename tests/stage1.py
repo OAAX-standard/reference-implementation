@@ -4,7 +4,6 @@
 Output: tests/test_models/simplified/<model>-simplified.onnx
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -14,10 +13,10 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
+from tests.docker_utils import DOCKER_IMAGE, NO_CACHE, check_image, docker_user_args  # noqa: E402
 from tests.models import download_model  # noqa: E402
 
 SIMPLIFIED_DIR = ROOT / "tests" / "test_models" / "simplified"
-DOCKER_IMAGE = "oaax-cpu-toolchain:latest"
 CLASSIFICATION_MODELS = ["resnet18", "mobilenetv2", "squeezenet"]
 
 
@@ -25,18 +24,11 @@ def header(title: str) -> None:
     print(f"\n\033[34m=== {title} ===\033[0m")
 
 
-def _docker_available() -> bool:
-    try:
-        r = subprocess.run(["docker", "images", "-q", DOCKER_IMAGE], capture_output=True, text=True, timeout=5)
-        return bool(r.stdout.strip())
-    except Exception:
-        return False
-
-
 def simplify_classification_models() -> None:
     """Download classification models and simplify them via the Docker toolchain."""
-    if not _docker_available():
-        print(f"  Skipping: Docker image '{DOCKER_IMAGE}' not available")
+    image_problem = check_image()
+    if image_problem:
+        print(f"  Skipping: {image_problem}")
         return
 
     SIMPLIFIED_DIR.mkdir(parents=True, exist_ok=True)
@@ -45,7 +37,7 @@ def simplify_classification_models() -> None:
 
     for model_name in CLASSIFICATION_MODELS:
         dest = SIMPLIFIED_DIR / f"{model_name}-simplified.onnx"
-        if dest.exists():
+        if dest.exists() and not NO_CACHE:
             print(f"  {model_name}: already simplified")
             continue
 
@@ -59,15 +51,12 @@ def simplify_classification_models() -> None:
             docker_out = tmp_path / "output"
             docker_out.mkdir()
 
-            # run as the host user: the image's appuser (uid 1000) can't read
-            # the mode-700 tempdir or write the output dir otherwise
             result = subprocess.run(
                 [
                     "docker",
                     "run",
                     "--rm",
-                    "--user",
-                    f"{os.getuid()}:{os.getgid()}",
+                    *docker_user_args(),
                     "-v",
                     f"{tmp_path}:/input",
                     "-v",
