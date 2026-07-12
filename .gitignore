@@ -33,3 +33,11 @@ venv/
 # Test / benchmark output
 runtime.log
 results*.csv
+
+# Vendored onnxruntime trees re-include *.onnx via nested .gitignore negations;
+# exclude the parent dirs so their downloaded test/sample models stay untracked
+runtime-library/deps/onnxruntime/*/winml/test/
+runtime-library/deps/onnxruntime/*/samples/nodejs/
+
+# C++ test build-check output
+tests/runtime/build_check/
