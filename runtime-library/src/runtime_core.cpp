@@ -237,7 +237,10 @@ static void worker_loop(int model_id, Ort::Session* session) {
                                 request_id);
             }
         } catch (const std::exception& e) {
-            g_logger->error("[model {}] Inference error: {}", model_id, e.what());
+            if (input)
+                g_logger->error("[model {}] Inference error for request {}: {}", model_id, input->id, e.what());
+            else
+                g_logger->error("[model {}] Failed to build output: {}", model_id, e.what());
             deep_free_tensors(input);
         }
     }
@@ -406,16 +409,26 @@ fail:
 }
 
 RuntimeStatus runtime_enqueue_input(int model_id, Tensors* input_tensors) {
-    if (!g_initialized) return RUNTIME_STATUS_NOT_INITIALIZED;
-    if (!g_models_loaded) return RUNTIME_STATUS_MODEL_NOT_LOADED;
-    if (model_id < 0 || model_id >= (int)g_models.size()) return RUNTIME_STATUS_INVALID_MODEL_ID;
+    if (!g_initialized) {
+        set_error("runtime_enqueue_input: runtime not initialized");
+        return RUNTIME_STATUS_NOT_INITIALIZED;
+    }
+    if (!g_models_loaded) {
+        set_error("runtime_enqueue_input: no models loaded — call runtime_load_models() first");
+        return RUNTIME_STATUS_MODEL_NOT_LOADED;
+    }
+    if (model_id < 0 || model_id >= (int)g_models.size()) {
+        set_error("runtime_enqueue_input: invalid model_id " + std::to_string(model_id) + " (loaded models: 0.." +
+                  std::to_string((int)g_models.size() - 1) + ")");
+        return RUNTIME_STATUS_INVALID_MODEL_ID;
+    }
     if (!input_tensors) {
         set_error("runtime_enqueue_input: null input_tensors");
         return RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
     if (!g_models[model_id]->input_queue.try_enqueue(input_tensors)) {
-        set_error("runtime_enqueue_input: input queue full");
+        set_error("runtime_enqueue_input: input queue full for model " + std::to_string(model_id));
         return RUNTIME_STATUS_ERROR;
     }
     sem_post(&g_models[model_id]->input_sem);
@@ -424,7 +437,10 @@ RuntimeStatus runtime_enqueue_input(int model_id, Tensors* input_tensors) {
 }
 
 RuntimeStatus runtime_retrieve_output(int* model_id, Tensors** output_tensors, int timeout_ms) {
-    if (!g_initialized) return RUNTIME_STATUS_NOT_INITIALIZED;
+    if (!g_initialized) {
+        set_error("runtime_retrieve_output: runtime not initialized");
+        return RUNTIME_STATUS_NOT_INITIALIZED;
+    }
     if (!model_id || !output_tensors) {
         set_error("runtime_retrieve_output: null output parameter");
         return RUNTIME_STATUS_INVALID_ARGUMENT;
@@ -453,17 +469,27 @@ RuntimeStatus runtime_cleanup(void) {
             if (t.joinable()) t.join();
     }
 
+    int dropped_inputs = 0, dropped_outputs = 0;
     for (auto* ms : g_models) {
         Tensors* t;
-        while (ms->input_queue.try_dequeue(t)) deep_free_tensors(t);
+        while (ms->input_queue.try_dequeue(t)) {
+            deep_free_tensors(t);
+            ++dropped_inputs;
+        }
         sem_destroy(&ms->input_sem);
         delete ms;
     }
     g_models.clear();
 
     OutputItem item;
-    while (g_output_queue.try_dequeue(item)) deep_free_tensors(item.tensors);
+    while (g_output_queue.try_dequeue(item)) {
+        deep_free_tensors(item.tensors);
+        ++dropped_outputs;
+    }
     sem_destroy(&g_output_sem);
+    if (dropped_inputs || dropped_outputs)
+        g_logger->warn("Dropped {} pending input(s) and {} unretrieved output(s) during cleanup", dropped_inputs,
+                       dropped_outputs);
 
     g_env.reset();
     g_initialized = false;

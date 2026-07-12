@@ -24,7 +24,10 @@ def cli():
     from .utils import md5_hash, simplify_onnx
 
     logs = Logs()
-    logs.add_message("Simplifying ONNX model", {"ONNX Path": onnx_path, "MD5": md5_hash(onnx_path)})
+    logs.add_message(
+        "Simplifying ONNX model",
+        {"ONNX Path": onnx_path, "MD5": md5_hash(onnx_path), "Size (bytes)": os.path.getsize(onnx_path)},
+    )
 
     makedirs(output_dir, exist_ok=True)
 
@@ -36,14 +39,11 @@ def cli():
 
     mime_type = "application/x-onnx; device=cpu"
 
-    # Copy optimized model and logs to the output directory
     from shutil import copy
 
-    logs.save_as_json(logs_path)
     if optimized_onnx_path.strip() != new_onnx_path.strip():
         copy(optimized_onnx_path, new_onnx_path)
 
-    # Add message to logs
     logs.add_message(
         "Successful Conversion",
         {
@@ -51,10 +51,13 @@ def cli():
             "Output file name": new_onnx_filename,
             "MIME type": mime_type,
             "Output file MD5": md5_hash(new_onnx_path),
+            "Output size (bytes)": os.path.getsize(new_onnx_path),
             "Logs file name": "logs.json",
         },
     )
 
-    # Print logs to stdout
+    # Save after the final message so logs.json contains the complete record
+    logs.save_as_json(logs_path)
+
     print(logs)
     print("Exiting.")
