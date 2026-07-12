@@ -159,14 +159,6 @@ if(NOT MSVC)
   target_link_options(RuntimeLibrary PRIVATE "-Wl,-z,noexecstack")
 endif()
 
-# Enable dispatch profiling. Automatically on for Debug; pass -DOAAX_PROFILE=ON
-# to enable in other build types.
-option(OAAX_PROFILE "Enable per-request inference profiling" OFF)
-if(OAAX_PROFILE OR "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-  target_compile_definitions(RuntimeLibrary PUBLIC OAAX_PROFILE=1)
-  message(STATUS "OAAX_PROFILE=1 enabled")
-endif()
-
 # Add optimization and debug flags for Release builds
 if(MSVC)
   if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
