@@ -6,7 +6,6 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include <iostream>
 #include <stdexcept>
 
 ONNXTensorElementDataType map_to_ort_type(TensorElementType t) {
@@ -202,6 +201,5 @@ void destroy_logger(std::shared_ptr<spdlog::logger> logger) {
     if (logger) {
         logger->flush();
         spdlog::drop(logger->name());
-        logger = nullptr;
     }
 }

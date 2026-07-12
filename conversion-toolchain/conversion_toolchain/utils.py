@@ -6,13 +6,11 @@ from onnxsim import simplify
 
 
 def simplify_onnx(onnx_path: str, logs):
-    # logs
     try:
         model, check = simplify(onnx_path, check_n=3)
         assert check, "Failed to simplify ONNX model"
         logs.add_message("Simplified ONNX model successfully")
     except Exception as e:
-        # logs
         if logs:
             logs.add_message(
                 "Failed to simplify ONNX model", {"Error": str(e), "Fallback": "Using the original ONNX file"}
