@@ -75,12 +75,19 @@ uv sync
 uv pip install "numpy>=1.21" "onnxruntime>=1.16" "pytest>=7.0"
 ```
 
+## Git hooks
+
+Install the pre-commit hooks once per clone — this includes a `commit-msg` guard
+that rejects commits whose DCO sign-off doesn't match the commit author:
+
+```bash
+uv run pre-commit install   # installs both pre-commit and commit-msg stages
+```
+
 ## Commit conventions
 
-All commits must include a sign-off and co-author line:
-
-```
-Signed-off-by: Your Name <your@email.com>
-```
+All commits must be signed off with `git commit -s`. The sign-off must exactly
+match your `git config user.name` / `user.email` — the DCO check on PRs rejects
+any mismatch, including placeholder identities.
 
 Commit message format: `<type>: <short description>` where type is one of `feat`, `fix`, `refactor`, `docs`, `ci`, `chore`.

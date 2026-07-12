@@ -4,6 +4,9 @@ exclude: ^(runtime-library/deps/|\.venv/|conversion-toolchain/\.venv/)
 default_language_version:
   python: python3.11
 
+# Install the commit-msg stage too (DCO sign-off guard).
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   # ── General file hygiene ─────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -47,6 +50,15 @@ repos:
     rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
     hooks:
       - id: hadolint-docker
+
+  # ── DCO sign-off guard ───────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: dco-signoff
+        name: sign-off matches commit author (DCO)
+        language: script
+        entry: scripts/check-signoff.sh
+        stages: [commit-msg]
 
   # ── Secret scanning ──────────────────────────────────────────────────────────
   - repo: local
