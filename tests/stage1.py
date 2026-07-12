@@ -4,6 +4,7 @@
 Output: tests/test_models/simplified/<model>-simplified.onnx
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -58,11 +59,15 @@ def simplify_classification_models() -> None:
             docker_out = tmp_path / "output"
             docker_out.mkdir()
 
+            # run as the host user: the image's appuser (uid 1000) can't read
+            # the mode-700 tempdir or write the output dir otherwise
             result = subprocess.run(
                 [
                     "docker",
                     "run",
                     "--rm",
+                    "--user",
+                    f"{os.getuid()}:{os.getgid()}",
                     "-v",
                     f"{tmp_path}:/input",
                     "-v",

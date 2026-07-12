@@ -10,6 +10,7 @@ Prerequisites:
 """
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -65,11 +66,15 @@ def sample_model():
 
 
 def _run_docker(inp: Path, out: Path, model_filename: str, timeout: int = 120) -> subprocess.CompletedProcess:
+    # run as the host user so the image's appuser (uid 1000) uid mismatch
+    # doesn't block reading /input or writing /output
     return subprocess.run(
         [
             "docker",
             "run",
             "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
             "-v",
             f"{inp}:/input",
             "-v",

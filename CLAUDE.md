@@ -117,9 +117,9 @@ C++ tests: `bash tests/runtime/build-tests.sh` then run binaries from `tests/run
 
 ## Git Workflow
 
-- **Commit** freely after every logical set of changes — no need to ask. Always sign off commits and include Claude as co-author. Every commit message must end with:
+- **Commit** freely after every logical set of changes — no need to ask. Always sign off commits (`git commit -s`) and include Claude as co-author. The sign-off MUST exactly match the commit author's `git config user.name`/`user.email` — never a placeholder or a different identity — or the DCO check fails (see `.claude/rules/git-signoff.md`). Every commit message must end with:
   ```
-  Signed-off-by: Your Name <your-email@example.com>
+  Signed-off-by: <git config user.name> <git config user.email>
   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
   ```
 - **Push** the current branch freely at any time.

@@ -6,6 +6,7 @@ simplified_yolo_models runs all YOLO variants through the Docker toolchain
 Stage 1 populates this cache; Stage 2 reads from it without re-converting.
 """
 
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -49,11 +50,16 @@ def _simplify_with_docker(model_name: str, onnx_path: Path, out_dir: Path) -> Pa
         docker_out = tmp_path / "output"
         docker_out.mkdir()
 
+        # tempfile dirs are mode 700, owned by the host user. The image runs as
+        # uid 1000 (appuser), which can't read /input or write /output unless the
+        # container runs as the host user.
         result = subprocess.run(
             [
                 "docker",
                 "run",
                 "--rm",
+                "--user",
+                f"{os.getuid()}:{os.getgid()}",
                 "-v",
                 f"{tmp_path}:/input",
                 "-v",
