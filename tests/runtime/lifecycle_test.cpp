@@ -7,7 +7,8 @@
  *
  * Tests that do not require a model file (always run):
  *   1. API guards before first init — functions return NOT_INITIALIZED
- *   2. Init/cleanup cycle repeated 5 times without a model
+ *   2. Init/cleanup cycle repeated 5 times without a model, with no thread leak
+ *      (leaked threads pin the DLL module on Windows, blocking file replacement)
  *   3. State is clean after cleanup: get_info returns null, get_error returns null
  *   4. Error string cleared by cleanup; stays null after a clean reinit
  *   5. Enqueue/retrieve after cleanup return NOT_INITIALIZED
@@ -17,15 +18,26 @@
  *   7. runtime_get_info() reflects correct loaded_models count
  *   8. Double runtime_load_models without cleanup returns ALREADY_INITIALIZED
  *   9. Inference round-trip succeeds on cycle 2 (after a full teardown/reinit)
+ *  10. No threads survive cleanup after model load + inference
  *
  * Usage:
  *   ./lifecycle_test [model.onnx]
  */
 
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <thread>
+
+#ifdef _WIN32
+#include <windows.h>
+// tlhelp32.h requires windows.h to be included before it
+#include <tlhelp32.h>
+#else
+#include <dirent.h>
+#endif
 
 #include "oaax_runtime.h"
 
@@ -46,6 +58,49 @@
     do {                        \
         if (!(cond)) FAIL(msg); \
     } while (0)
+
+// Count live threads in this process. Returns -1 if the count is unavailable.
+static int count_threads() {
+#ifdef _WIN32
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap == INVALID_HANDLE_VALUE) return -1;
+    THREADENTRY32 te;
+    te.dwSize = sizeof(te);
+    DWORD pid = GetCurrentProcessId();
+    int n = 0;
+    if (!Thread32First(snap, &te)) {
+        CloseHandle(snap);
+        return -1;
+    }
+    do {
+        if (te.th32OwnerProcessID == pid) ++n;
+    } while (Thread32Next(snap, &te));
+    CloseHandle(snap);
+    return n;
+#else
+    DIR* dir = opendir("/proc/self/task");
+    if (!dir) return -1;
+    int n = 0;
+    while (dirent* entry = readdir(dir))
+        if (entry->d_name[0] != '.') ++n;
+    closedir(dir);
+    return n;
+#endif
+}
+
+// Recount until the expected value is seen, tolerating the short window in
+// which the OS still lists just-joined threads. Returns the last count.
+// The baseline is deliberately taken before the FIRST init: a warm-up cycle
+// would mask once-per-process leaks like the pinned spdlog pool this guards
+// against.
+static int count_threads_settled(int expected) {
+    int n = count_threads();
+    for (int i = 0; i < 20 && n != expected; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        n = count_threads();
+    }
+    return n;
+}
 
 static Config make_cfg() {
     static const char* keys[] = {"log_level"};
@@ -135,7 +190,8 @@ int main(int argc, char** argv) {
     PASS("all pre-init guards hold");
 
     // ── 2. Repeated init/cleanup cycles without a model ──────────────────────
-    std::cout << "\n[2] Init/cleanup cycle x5 (no model)" << std::endl;
+    std::cout << "\n[2] Init/cleanup cycle x5 (no model), no thread leak" << std::endl;
+    int threads_before = count_threads();
     for (int i = 1; i <= 5; ++i) {
         ASSERT(runtime_init(cfg) == RUNTIME_STATUS_SUCCESS,
                std::string("cycle ") + std::to_string(i) + ": runtime_init failed");
@@ -147,6 +203,17 @@ int main(int argc, char** argv) {
                std::string("cycle ") + std::to_string(i) + ": second cleanup should be idempotent");
     }
     PASS("5 init/cleanup cycles with double-init and idempotent-cleanup checks");
+
+    // Every thread started by runtime_init/runtime_cleanup must be joined by the
+    // time cleanup returns; a survivor pins the DLL module on Windows, making the
+    // file undeletable for the life of the host process.
+    if (threads_before != -1) {
+        int threads_after = count_threads_settled(threads_before);
+        ASSERT(threads_after == threads_before, std::string("thread leak: ") + std::to_string(threads_before) +
+                                                    " thread(s) before init, " + std::to_string(threads_after) +
+                                                    " after cleanup");
+    }
+    PASS("no threads survive runtime_cleanup");
 
     // ── 3. State clean after cleanup ─────────────────────────────────────────
     std::cout << "\n[3] State is clean after cleanup" << std::endl;
@@ -289,6 +356,16 @@ int main(int argc, char** argv) {
         ASSERT(runtime_cleanup() == RUNTIME_STATUS_SUCCESS, "cycle 2: cleanup failed");
     }
     PASS("inference round-trip succeeds on cycle 2 after full teardown/reinit");
+
+    // ── 10. No threads survive a full model lifecycle ────────────────────────
+    std::cout << "\n[10] No threads survive cleanup after model load + inference" << std::endl;
+    if (threads_before != -1) {
+        int after_model_cycles = count_threads_settled(threads_before);
+        ASSERT(after_model_cycles == threads_before, std::string("thread leak: ") + std::to_string(threads_before) +
+                                                         " thread(s) before init, " +
+                                                         std::to_string(after_model_cycles) + " after model lifecycle");
+    }
+    PASS("no threads survive cleanup after model load + inference");
 
     std::cout << "\n=== All tests passed ===" << std::endl;
     return 0;

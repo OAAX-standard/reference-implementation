@@ -21,6 +21,9 @@ std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, i
                                                   int console_level = spdlog::level::info,
                                                   const std::string prefix = "OAAX");
 
-void destroy_logger(std::shared_ptr<spdlog::logger> logger);
+// Flushes and destroys the logger and joins the async logging thread. The
+// caller's reference is reset; no logging thread survives this call (a
+// surviving thread would pin the DLL module on Windows).
+void destroy_logger(std::shared_ptr<spdlog::logger>& logger);
 
 #endif  // RUNTIME_UTILS_HPP

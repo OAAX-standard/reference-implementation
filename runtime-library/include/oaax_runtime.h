@@ -121,7 +121,11 @@ OAAX_EXPORT RuntimeStatus runtime_enqueue_input(int model_id, Tensors* input_ten
  * The caller is responsible for freeing *output_tensors. */
 OAAX_EXPORT RuntimeStatus runtime_retrieve_output(int* model_id, Tensors** output_tensors, int timeout_ms);
 
-/* Stop all worker threads and release all resources. Idempotent. */
+/* Stop all worker threads and release all resources. Idempotent.
+ * No runtime-created thread survives this call, so the library can be
+ * safely unloaded (and its file replaced) once it returns. Always call this
+ * before unloading the library: unloading an initialized runtime tears down
+ * its threads from within the platform loader, which can deadlock. */
 OAAX_EXPORT RuntimeStatus runtime_cleanup(void);
 
 /* Return the last error string, or NULL if no error has occurred. */

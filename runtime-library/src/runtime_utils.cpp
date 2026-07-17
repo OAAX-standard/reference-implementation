@@ -172,6 +172,11 @@ std::vector<std::string> get_output_names(Ort::Session& session) {
     return names;
 }
 
+// Owned here (not a function-local static) so destroy_logger can release it:
+// its worker thread must be joined before runtime_cleanup returns, otherwise
+// the thread pins the DLL module on Windows and the file can't be replaced.
+static std::shared_ptr<spdlog::details::thread_pool> g_log_thread_pool;
+
 std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, int file_level, int console_level,
                                                   const std::string prefix) {
     try {
@@ -181,11 +186,11 @@ std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, i
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_st>(log_file, 1024 * 1024 * 5, 3);
         file_sink->set_level(static_cast<spdlog::level::level_enum>(file_level));
 
-        static auto thread_pool = std::make_shared<spdlog::details::thread_pool>(8192, 1);
+        g_log_thread_pool = std::make_shared<spdlog::details::thread_pool>(8192, 1);
 
         auto logger =
             std::make_shared<spdlog::async_logger>(prefix, spdlog::sinks_init_list{console_sink, file_sink},
-                                                   thread_pool, spdlog::async_overflow_policy::overrun_oldest);
+                                                   g_log_thread_pool, spdlog::async_overflow_policy::overrun_oldest);
 
         spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [" + prefix + "] [%^%l%$] %v");
         logger->set_level(static_cast<spdlog::level::level_enum>(std::min(file_level, console_level)));
@@ -197,9 +202,15 @@ std::shared_ptr<spdlog::logger> initialize_logger(const std::string& log_file, i
     }
 }
 
-void destroy_logger(std::shared_ptr<spdlog::logger> logger) {
+void destroy_logger(std::shared_ptr<spdlog::logger>& logger) {
     if (logger) {
         logger->flush();
-        spdlog::drop(logger->name());
+        logger.reset();
     }
+
+    // Released even when logger is null: initialize_logger may have created the
+    // pool and then thrown. The last logger reference must be gone first —
+    // destroying the pool drains the queue and joins the worker thread, so no
+    // logging thread survives this call.
+    g_log_thread_pool.reset();
 }

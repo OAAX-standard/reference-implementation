@@ -306,6 +306,11 @@ RuntimeStatus runtime_init(Config config) {
     } catch (const std::exception& e) {
         g_last_error = e.what();
         if (g_logger) g_logger->error("runtime_init failed: {}", g_last_error);
+        // Failed init won't be followed by cleanup — release the logger and its
+        // thread unconditionally (initialize_logger may have started the thread
+        // and thrown before g_logger was assigned) so nothing outlives this
+        // call and pins the DLL on Windows.
+        destroy_logger(g_logger);
         return RUNTIME_STATUS_ERROR;
     }
 }
@@ -501,7 +506,6 @@ RuntimeStatus runtime_cleanup(void) {
 
     g_logger->info("Runtime cleanup complete.");
     destroy_logger(g_logger);
-    g_logger = nullptr;
 
     return RUNTIME_STATUS_SUCCESS;
 }
