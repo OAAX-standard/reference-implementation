@@ -94,6 +94,10 @@ static std::atomic<bool> g_models_loaded{false};
 
 static moodycamel::ConcurrentQueue<OutputItem> g_output_queue;
 static sem_t g_output_sem;
+// Guards sem_destroy: g_output_sem only exists between a successful sem_init in
+// runtime_load_models and its destruction. Destroying it twice (or before any
+// init) closes a stale/invalid handle on Windows.
+static bool g_output_sem_active = false;
 
 static std::shared_ptr<spdlog::logger> g_logger;
 static std::string g_last_error;
@@ -330,6 +334,7 @@ RuntimeStatus runtime_load_models(int num_models, const ModelConfig* model_confi
     }
 
     sem_init(&g_output_sem, 0, 0);
+    g_output_sem_active = true;
 
     int budget_per_model = std::max(1, g_allotted_threads / num_models);
     int intra_threads = g_override_intra > 0 ? g_override_intra : 4;
@@ -408,6 +413,7 @@ fail:
     }
     g_models.clear();
     sem_destroy(&g_output_sem);
+    g_output_sem_active = false;
     OutputItem item;
     while (g_output_queue.try_dequeue(item)) deep_free_tensors(item.tensors);
     return RUNTIME_STATUS_ERROR;
@@ -491,7 +497,10 @@ RuntimeStatus runtime_cleanup(void) {
         deep_free_tensors(item.tensors);
         ++dropped_outputs;
     }
-    sem_destroy(&g_output_sem);
+    if (g_output_sem_active) {
+        sem_destroy(&g_output_sem);
+        g_output_sem_active = false;
+    }
     if (dropped_inputs || dropped_outputs)
         g_logger->warn("Dropped {} pending input(s) and {} unretrieved output(s) during cleanup", dropped_inputs,
                        dropped_outputs);
