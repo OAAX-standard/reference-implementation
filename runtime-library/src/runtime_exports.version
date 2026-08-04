@@ -1,0 +1,29 @@
+/*
+ * Restricts the dynamic symbol table of libRuntimeLibrary.so to the OAAX v2 C
+ * API. This runtime statically links the entire ONNX Runtime/onnx/protobuf/
+ * abseil dependency graph; those prebuilt static libraries were not compiled
+ * with hidden visibility, so -fvisibility=hidden on our own sources alone
+ * cannot remove their symbols from the final .so's dynamic table. A version
+ * script works at final-link time regardless of how the inputs were built,
+ * and is the only way to keep GNU_UNIQUE-bound symbols (e.g. ONNX Runtime's
+ * DataTypeRegistry singleton guard variable) out of the process-wide unique
+ * symbol table - without this, every independently dlopen()'d copy of this
+ * library shares that global state, which can corrupt a freshly loaded copy
+ * if a previous one is still resident. Mirrors the fix already applied in
+ * nvidia-acceleration's onnxruntime/ backend and in intel-acceleration's
+ * cmake/runtime.map.
+ */
+OAAX_V2 {
+  global:
+    runtime_init;
+    runtime_load_models;
+    runtime_enqueue_input;
+    runtime_retrieve_output;
+    runtime_cleanup;
+    runtime_get_error;
+    runtime_get_version;
+    runtime_get_name;
+    runtime_get_info;
+  local:
+    *;
+};

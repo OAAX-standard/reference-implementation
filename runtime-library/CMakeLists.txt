@@ -124,10 +124,18 @@ if(NOT MSVC)
   set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fno-common -Wall -Wextra -Wformat -Wformat-security")
   set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -Wno-missing-field-initializers -Wno-attribute-warning")
   set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fdata-sections -ffunction-sections -Wl,--gc-sections -fno-exceptions")
+  # Statically-linked ONNX Runtime/onnx/protobuf/abseil brings thousands of inline/template
+  # symbols. With the default (exported) visibility, GCC emits many of these as GNU_UNIQUE,
+  # which the dynamic linker deliberately shares across EVERY independently dlopen()'d copy
+  # of this library in a process, bypassing RTLD_LOCAL isolation entirely. Hidden visibility
+  # (+ -fno-gnu-unique) makes every internal symbol private per-DSO-copy; only the OAAX v2
+  # API (OAAX_EXPORT in oaax_runtime.h) stays exported. See runtime_exports.version below for
+  # why this alone isn't enough for the prebuilt ORT static libs.
+  set(CMAKE_BUILD_FLAGS "${CMAKE_BUILD_FLAGS} -fvisibility=hidden -fno-gnu-unique")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wformat -Wformat-security -fdata-sections -ffunction-sections -Wl,--gc-sections")
   set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
-  set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include -fexceptions ")
-  set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include")
+  set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include -fexceptions -fvisibility-inlines-hidden")
+  set(CMAKE_CPP_FLAGS " ${CMAKE_CPP_FLAGS} ${CMAKE_BUILD_FLAGS}  -D_GNU_SOURCE -I${CROSS_ROOT}/include -fvisibility-inlines-hidden")
 endif()
 
 # === Generic Build Settings ===
@@ -157,6 +165,13 @@ add_library(RuntimeLibrary SHARED ${SRC})
 
 if(NOT MSVC)
   target_link_options(RuntimeLibrary PRIVATE "-Wl,-z,noexecstack")
+  # Restrict the dynamic symbol table to the OAAX v2 API (see runtime_exports.version):
+  # -fvisibility=hidden above only covers our own sources, not the prebuilt ORT/onnx/
+  # protobuf/abseil static libs linked in below, so their symbols still need to be hidden
+  # from the *final* .so's dynamic table at link time.
+  target_link_options(RuntimeLibrary PRIVATE
+    "-Wl,--version-script=${SRC_DIR}/runtime_exports.version"
+  )
 endif()
 
 # Add optimization and debug flags for Release builds
