@@ -1,7 +1,6 @@
 ---
 name: dev-setup
 description: Sets up and validates the development environment for the OAAX reference implementation. Use when configuring a new machine or diagnosing build environment issues.
-model: sonnet
 tools:
   - Bash
   - Read
@@ -22,7 +21,7 @@ You set up and validate the OAAX development environment.
 
 | Tool | Check Command | Expected |
 |------|---------------|----------|
-| CMake | `cmake --version` | ≥ 3.10.2 |
+| CMake | `cmake --version` | 3.31.7 (installed by `setup-env.sh`) |
 | X86_64 toolchain | `ls /opt/ \| grep x86_64` | `x86_64-unknown-linux-gnu-gcc-9.5.0` |
 | AARCH64 toolchain | `ls /opt/ \| grep aarch64` | `gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu` |
 | Docker | `docker --version` | any version |

@@ -1,7 +1,6 @@
 ---
 name: style-checker
 description: Checks and enforces style guide consistency across C++ and Python source files. Use before creating a PR or on demand to audit the codebase.
-model: sonnet
 tools:
   - Read
   - Edit
@@ -14,10 +13,14 @@ You enforce style consistency in the OAAX codebase. Rules live in `.claude/rules
 
 ## Scope
 
-**C++ files:** `runtime-library/src/*.cpp`, `runtime-library/include/*.hpp`
-**Python files:** `conversion-toolchain/conversion_toolchain/*.py`
+**C++ files:** `runtime-library/src/*.cpp`, `runtime-library/include/*.h(pp)`, `tests/runtime/*.cpp`
+**Python files:** `conversion-toolchain/conversion_toolchain/*.py`, `tests/*.py`
 
 Do NOT touch files under `runtime-library/deps/` — those are third-party.
+
+Mechanical style (formatting, import order, lint) is already enforced by
+pre-commit (`ruff`, `clang-format`) — run `uv run pre-commit run --all-files`
+first, then focus manual review on what those tools can't check.
 
 ## C++ Checks
 
@@ -30,8 +33,8 @@ grep -rn 'TODO\|FIXME\|HACK' runtime-library/src/ runtime-library/include/
 ```
 
 Manual checks:
-- Functions returning status codes: all return `int`, 0 = success
-- Error strings go through `setError()` before returning non-zero
+- C API functions return `RuntimeStatus` (`RUNTIME_STATUS_SUCCESS` = 0, non-zero on error)
+- Error strings are stored for retrieval via `runtime_get_error()` before returning non-zero
 - No raw `printf` or `std::cout` — logging goes through spdlog
 - No exception throwing in `extern "C"` functions
 
@@ -47,7 +50,7 @@ grep -n '^import\|^from' conversion-toolchain/conversion_toolchain/*.py
 Manual checks:
 - All public functions have type hints
 - No bare `except:` clauses
-- Python 3.8-compatible syntax only (no walrus in complex expressions, no `match`)
+- Target Python 3.11 (the Docker image base); avoid newer syntax
 
 ## Fixing
 

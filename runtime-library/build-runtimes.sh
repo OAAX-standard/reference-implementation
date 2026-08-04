@@ -1,3 +1,4 @@
+#!/bin/bash
 set -e
 
 cd "$(dirname "$0")"
@@ -5,12 +6,13 @@ cd "$(dirname "$0")"
 BUILD_DIR="$(pwd)/build"
 ARTIFACTS_DIR="$(pwd)/artifacts"
 ROOT_DIR="$(pwd)/.."
-mkdir -p $BUILD_DIR
-rm -rf $ARTIFACTS_DIR
-mkdir -p $ARTIFACTS_DIR
+mkdir -p "$BUILD_DIR"
+echo ">>> Removing previous artifacts in $ARTIFACTS_DIR..."
+rm -rf "$ARTIFACTS_DIR"
+mkdir -p "$ARTIFACTS_DIR"
 
 VERSION_FILE="$ROOT_DIR/VERSION"
-RUNTIME_VERSION="$(cat $VERSION_FILE)"
+RUNTIME_VERSION="$(cat "$VERSION_FILE")"
 
 echo "Building for runtime version: $RUNTIME_VERSION"
 
@@ -29,12 +31,12 @@ else
   PLATFORMS=("$1")
 fi
 
-cd ${BUILD_DIR}
+cd "${BUILD_DIR}"
 
 for platform in "${PLATFORMS[@]}"; do
   echo ">>>> Building for platform: $platform"
   # Clean up old build files
-  rm -rf *
+  rm -rf ./*
   # Generate the build files
   cmake .. -DPLATFORM="$platform" -DCMAKE_BUILD_TYPE=Release -DRUNTIME_VERSION="$RUNTIME_VERSION"
   # Make the build
