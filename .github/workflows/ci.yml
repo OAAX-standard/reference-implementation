@@ -200,7 +200,7 @@ jobs:
           submodules: recursive
 
       - name: Download runtime artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: runtime-linux-x86_64
           path: /tmp/runtime
@@ -211,7 +211,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
 
       - name: Download toolchain artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: toolchain-image
           path: /tmp/toolchain
@@ -255,7 +255,7 @@ jobs:
           submodules: recursive
 
       - name: Download runtime artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: runtime-linux-x86_64
           path: /tmp/runtime
@@ -266,7 +266,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-X86_64.tar.gz -C runtime-library/build/
 
       - name: Download simplified models
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: simplified-models
           path: tests/test_models/simplified
@@ -309,7 +309,7 @@ jobs:
           submodules: recursive
 
       - name: Download AARCH64 runtime artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: runtime-linux-aarch64
           path: /tmp/runtime
@@ -320,7 +320,7 @@ jobs:
           tar xzf /tmp/runtime/runtime-library-AARCH64.tar.gz -C runtime-library/build/
 
       - name: Download simplified models
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: simplified-models
           path: tests/test_models/simplified
@@ -363,7 +363,7 @@ jobs:
           submodules: recursive
 
       - name: Download Windows runtime artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: runtime-windows-x86_64
           path: C:\runtime
@@ -375,7 +375,7 @@ jobs:
           tar xzf C:\runtime\runtime-library-X86_64-Windows.tar.gz -C runtime-library\build\Release\
 
       - name: Download simplified models
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: simplified-models
           path: tests/test_models/simplified
