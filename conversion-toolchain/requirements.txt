@@ -1,5 +1,5 @@
 .
 lgg==0.4.0
-onnx==1.21.0
+onnx==1.23.2
 onnxsim==0.4.36
 onnxruntime==1.21.1
