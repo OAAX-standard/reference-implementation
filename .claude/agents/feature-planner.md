@@ -1,7 +1,6 @@
 ---
 name: feature-planner
 description: Plans a new feature or change for the OAAX reference implementation. Use at the start of any non-trivial work to produce a written plan before touching code.
-model: sonnet
 tools:
   - Read
   - Bash
@@ -51,6 +50,7 @@ What could go wrong; how to detect it.
 
 ## Key Constraints to Check
 
-- Does this touch the C API? If yes, new args must be added via `runtime_initialization_with_args` key-value pairs only.
+- Does this touch the C API? If yes, no signature changes — new capabilities go through `Config` key-value pairs passed to `runtime_init()` (or per-model `ModelConfig.config`).
+- Does this add or change a `runtime_init` config key? If yes, the plan must include updating the header comment in `oaax_runtime.h`, `runtime-library/README.md`, and `CLAUDE.md`.
 - Does this touch `runtime-library/deps/`? If yes, flag it — those are pre-compiled and require full replacement.
 - Does this change build outputs? If yes, confirm all three platforms still produce valid artifacts.

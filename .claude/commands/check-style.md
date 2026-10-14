@@ -1,7 +1,6 @@
 ---
 name: check-style
 description: Check and fix style guide consistency across C++ and Python source files
-model: sonnet
 effort: medium
 ---
 

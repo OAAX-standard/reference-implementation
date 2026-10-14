@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oaax-reference-implementation"
+dynamic = ["version"]
+description = "OAAX reference implementation — conversion toolchain and runtime library"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+keywords = ["oaax", "onnx", "inference", "runtime"]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[project.optional-dependencies]
+integration = [
+    "pytest>=7.0",
+    "numpy>=1.21",
+    "onnx>=1.14",
+    "onnx-simplifier>=0.4.36",
+    "onnxsim==0.4.36",
+    "onnxruntime>=1.16",
+    "ultralytics>=8.3.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: long-running tests. Run with: pytest -m slow",
+]
+
+# ── Ruff (lint + format) ──────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports, undefined names, …)
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade (modernise syntax)
+    "B",   # flake8-bugbear (common bug patterns)
+]
+ignore = [
+    "E501",  # line-too-long — enforced by ruff-format instead
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["conversion_toolchain"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["F401", "F811"]

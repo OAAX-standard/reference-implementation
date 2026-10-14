@@ -19,11 +19,11 @@ Only comment when the **why** is non-obvious — hidden constraints, subtle inva
 
 ## Error Handling
 
-Return integer status codes (0 = success, non-zero = error) matching the existing C API pattern. Store error strings via `setError()` for retrieval by `runtime_error_message()`.
+Return `RuntimeStatus` codes (`RUNTIME_STATUS_SUCCESS = 0`, non-zero on error) matching the existing C API pattern. Store error strings via `setError()` for retrieval by `runtime_get_error()`.
 
 ## Headers
 
-Keep `runtime_core.hpp` as a pure C interface (`extern "C"`). C++ internals stay in `.cpp` files or `runtime_utils.hpp`.
+Keep `oaax_runtime.h` as a pure C interface (`extern "C"`). C++ internals stay in `.cpp` files or `runtime_utils.hpp`.
 
 ## Includes
 

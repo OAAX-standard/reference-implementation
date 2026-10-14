@@ -7,7 +7,7 @@ The optimization step includes checking the correctness of the ONNX graph, fusin
 
 ## Getting started
 
-The Docker image is built using the provided [Dockerfile](Dockerfile) and [entrypoint](scripts%2Fconvert.sh) script. 
+The Docker image is built using the provided [Dockerfile](Dockerfile) and [entrypoint](scripts/convert.sh) script.
 The entrypoint script takes two parameters:
 - The path to the platform-agnostic model.
 - The path to the output directory where the optimized model will be saved, along with a JSON file that contains the conversion process logs.
@@ -31,3 +31,19 @@ docker run -v /path/to/model-directory:/model  oaax-cpu-toolchain:latest /model/
 That will create a Docker container, mount the model directory to the container, and run the conversion process on the 
 model file `model.onnx` (located in `/path/to/model-directory` on the host machine). 
 The optimized model will be saved in the `/path/to/model-directory/output/` directory (on the host).
+
+## Output format
+
+A successful run produces two files in the output directory:
+
+- `<model-name>-simplified.onnx` — the optimized ONNX model ready for the runtime.
+- `logs.json` — a JSON array of conversion steps, for example:
+
+```json
+[
+  {"Message": "Simplifying ONNX model", "timestamp": "..."},
+  {"Message": "Simplified ONNX model successfully", "md5": "a1b2c3...", "timestamp": "..."}
+]
+```
+
+Each entry has a `Message` field. A completed conversion always ends with a message containing `"successfully"`. If conversion fails, the last entry describes the error.

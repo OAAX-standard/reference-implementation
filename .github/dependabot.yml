@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # GitHub Actions — watch for new action releases
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Python — conversion toolchain Docker dependencies
+  - package-ecosystem: "pip"
+    directory: "/conversion-toolchain"
+    schedule:
+      interval: "weekly"
+
+  # npm is intentionally NOT configured here.
+  # runtime-library/deps/ contains pre-compiled ONNX Runtime vendored JS
+  # sources (including protobufjs) that cannot be updated independently of
+  # the ORT binary release. Dependabot security alerts for those paths
+  # should be dismissed individually in the GitHub UI.

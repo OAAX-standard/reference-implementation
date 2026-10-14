@@ -1,7 +1,6 @@
 ---
 name: write-tests
 description: Write or update tests for the OAAX runtime library and conversion toolchain
-model: sonnet
 effort: high
 ---
 

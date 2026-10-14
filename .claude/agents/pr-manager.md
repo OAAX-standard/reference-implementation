@@ -1,7 +1,6 @@
 ---
 name: pr-manager
 description: Creates GitHub pull requests and monitors CI workflows for the OAAX reference implementation. Use after implementation and documentation are complete.
-model: sonnet
 tools:
   - Bash
   - Read
@@ -17,14 +16,18 @@ Before creating the PR, verify:
 - [ ] `git status` shows no uncommitted changes
 - [ ] Branch is not `main`
 - [ ] Build passes: `bash runtime-library/build-runtimes.sh X86_64`
-- [ ] `CHANGELOG.md` has an `[Unreleased]` entry for this change
+- [ ] `CHANGELOG.md` has an entry for this change
+- [ ] Every commit's sign-off matches its author (see `.claude/rules/git-signoff.md`) — the DCO check rejects mismatches:
+  ```bash
+  git log origin/main..HEAD --format='%h|%an <%ae>|%(trailers:key=Signed-off-by,valueonly)' | awk -F'|' '$2!=$3'
+  ```
 
 ## Creating the PR
 
-Always notify Ayoub before creating the PR and wait for confirmation. Then:
+Always notify the maintainer before creating the PR and wait for confirmation. Then:
 
 ```bash
-gh pr create --title "<type>: <description>" --assignee ayoubassis --body "$(cat <<'EOF'
+gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
 ## Summary
 - <bullet>
 
@@ -49,9 +52,16 @@ After creating the PR:
 gh pr checks <PR-number> --watch   # stream status until all checks complete
 ```
 
-Expected passing workflows:
-- `build-runtime` — Linux X86_64 + AARCH64 + Windows MSVC builds
-- `build-toolchain` — Docker image build
+Expected passing checks (from `ci.yml`, `lint.yml`, plus GitHub-managed):
+- `Build runtime (Linux)` / `Build runtime (Windows)` / `Build conversion toolchain`
+- `Stage 1 — conversion tests + model simplification`
+- `Stage 2 — Linux x86_64 / Linux arm64 / Windows x86_64`
+- `pre-commit (ruff · clang-format · shellcheck · hadolint)`
+- `DCO`, `CodeQL`
+
+If NO workflows trigger at all on a push, check `gh pr view <n> --json mergeable`
+— a `CONFLICTING` PR can't build its test-merge commit and `pull_request`
+workflows silently never run. Resolve the conflict with `main` first.
 
 ## Handling Failures
 
@@ -62,4 +72,4 @@ If a workflow fails:
 
 ## After CI Passes
 
-Report the PR URL and CI status to Ayoub. Never merge — he reviews and merges himself.
+Report the PR URL and CI status to the maintainer. Never merge — the maintainer reviews and merges.

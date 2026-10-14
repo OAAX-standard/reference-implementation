@@ -1,0 +1,71 @@
+# Skip generated / vendored directories for all hooks.
+exclude: ^(runtime-library/deps/|\.venv/|conversion-toolchain/\.venv/)
+
+default_language_version:
+  python: python3.11
+
+# Install the commit-msg stage too (DCO sign-off guard).
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  # ── General file hygiene ─────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'          # preserve intentional trailing spaces in Markdown
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+        exclude: '^uv\.lock$'
+
+  # ── Python: ruff (lint + format) ─────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 6fec9b7edb08fd9989088709d864a7826dc74e80  # frozen: v0.15.12
+    hooks:
+      - id: ruff          # lint, with auto-fix
+        args: [--fix]
+      - id: ruff-format   # format (black-compatible)
+
+  # ── C / C++: clang-format ────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: dd18dad857d6133e90bbe478f4f2f22ec0030269  # frozen: v22.1.5
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+
+  # ── Shell: shellcheck ────────────────────────────────────────────────────────
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: 745eface02aef23e168a8afb6b5737818efbea95  # frozen: v0.11.0.1
+    hooks:
+      - id: shellcheck
+
+  # ── Dockerfile: hadolint ─────────────────────────────────────────────────────
+  - repo: https://github.com/hadolint/hadolint
+    rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
+    hooks:
+      - id: hadolint-docker
+
+  # ── DCO sign-off guard ───────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: dco-signoff
+        name: sign-off matches commit author (DCO)
+        language: script
+        entry: scripts/check-signoff.sh
+        stages: [commit-msg]
+
+  # ── Secret scanning ──────────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: check for secrets and confidential info
+        language: script
+        entry: scripts/check-secrets.sh
+        args: [--staged]
+        pass_filenames: false

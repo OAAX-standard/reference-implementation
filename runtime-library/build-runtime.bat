@@ -70,11 +70,12 @@ echo Copying shared libraries to artifacts directory...
 REM Create a Windows subdirectory in artifacts if it doesn't exist
 if not exist "%ARTIFACTS_DIR%\Windows" mkdir "%ARTIFACTS_DIR%\Windows"
 
-REM Copy all DLLs from Release to the artifacts Windows directory
+REM Copy all DLLs and the import library from Release to the artifacts Windows directory
 copy Release\*.dll "%ARTIFACTS_DIR%\Windows\"
+copy Release\RuntimeLibrary.lib "%ARTIFACTS_DIR%\Windows\"
 
-REM Create a gzipped tarball of the DLLs in the Windows artifacts directory
-tar czf "%ARTIFACTS_DIR%\runtime-library-X86_64-Windows.tar.gz" -C "%ARTIFACTS_DIR%\Windows" *.dll
+REM Create a gzipped tarball of the DLLs and import library in the Windows artifacts directory
+tar czf "%ARTIFACTS_DIR%\runtime-library-X86_64-Windows.tar.gz" -C "%ARTIFACTS_DIR%\Windows" *.dll RuntimeLibrary.lib
 
 REM Print confirmation message
 echo Shared libraries for Windows have been copied to "%ARTIFACTS_DIR%\Windows\"

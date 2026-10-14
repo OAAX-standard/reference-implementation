@@ -1,7 +1,6 @@
 ---
 name: analyze-ux
 description: Analyze and improve the developer experience and user-friendliness of the OAAX repository
-model: sonnet
 effort: high
 ---
 
