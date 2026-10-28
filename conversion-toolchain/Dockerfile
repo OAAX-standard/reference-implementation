@@ -22,6 +22,6 @@ COPY scripts/ /app/scripts
 RUN uv pip install --system --no-cache --only-binary onnxsim -r requirements.txt
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+USER 1000
 
 ENTRYPOINT ["bash", "/app/scripts/convert.sh"]
