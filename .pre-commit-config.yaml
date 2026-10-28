@@ -50,6 +50,8 @@ repos:
     rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
     hooks:
       - id: hadolint-docker
+        # The upstream hook runs the untagged (latest) image, so pin it to match rev.
+        entry: ghcr.io/hadolint/hadolint:v2.14.0 hadolint
 
   # ── DCO sign-off guard ───────────────────────────────────────────────────────
   - repo: local
