@@ -9,7 +9,7 @@ This repository contains the source code for building the reference implementati
 > the [OAAX repository](https://github.com/oaax-standard/OAAX)
 
 It builds on top of the illustrative implementation provided in
-the [OAAX standard repository](https://github.com/oaax-standard/OAAX/Illustrative%20example). Please check it out first to get a high-level understanding on how an OAAX runtime and conversion toolchain must be implemented.
+the [OAAX standard repository](https://github.com/OAAX-standard/OAAX/tree/main/example). Please check it out first to get a high-level understanding on how an OAAX runtime and conversion toolchain must be implemented.
 
 ## How the two components fit together
 
