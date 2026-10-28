@@ -9,7 +9,7 @@ This repository contains the source code for building the reference implementati
 > the [OAAX repository](https://github.com/oaax-standard/OAAX)
 
 It builds on top of the illustrative implementation provided in
-the [OAAX standard repository](https://github.com/oaax-standard/OAAX/Illustrative%20example). Please check it out first to get a high-level understanding on how an OAAX runtime and conversion toolchain must be implemented.
+the [OAAX standard repository](https://github.com/OAAX-standard/OAAX/tree/main/example). Please check it out first to get a high-level understanding on how an OAAX runtime and conversion toolchain must be implemented.
 
 ## How the two components fit together
 
@@ -71,8 +71,8 @@ Output: `conversion-toolchain/artifacts/oaax-cpu-toolchain.tar`
 
 ## Pre-built OAAX artifacts
 
-If you're interested in using the OAAX toolchain and runtime without building them, you can find them in the
-[contributions](https://github.com/oaax-standard/contributions) repository.   
+To use the OAAX toolchain and runtime without building them, download the 2.0 builds from the
+[CPU download table](https://docs.oaax.org/CPU/#download-links-and-compatibility-matrix) on docs.oaax.org.   
 Additionally, you can find a diverse set of examples and applications of using the OAAX runtime in the 
 [examples](https://github.com/oaax-standard/examples) repository.
 
