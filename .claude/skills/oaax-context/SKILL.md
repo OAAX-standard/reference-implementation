@@ -70,7 +70,7 @@ Backend: ONNX Runtime 1.21.1 (pre-built, in `runtime-library/deps/`).
 
 ## Versioning
 
-Version string lives in `VERSION` at repo root. Bump it for every release. CI uses it to name S3 artifacts and tag the toolchain Docker image.
+Version string lives in `VERSION` at repo root. Bump it for every release. CI uses it to name S3 artifacts (a release is uploaded only when the `vX.Y.Z` tag is pushed and a published version is never overwritten; PRs upload to `<branch>/` for testing) and to tag the toolchain Docker image.
 
 ## Design Constraints
 

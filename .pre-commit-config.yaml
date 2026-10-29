@@ -50,6 +50,9 @@ repos:
     rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
     hooks:
       - id: hadolint-docker
+        # The hook runs ghcr.io/hadolint/hadolint:latest, so a new hadolint release (2.15 added the info rule DL3066)
+        # fails CI with no change in the repo. Pin the image to the version of `rev` above.
+        entry: ghcr.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e hadolint
 
   # ── DCO sign-off guard ───────────────────────────────────────────────────────
   - repo: local

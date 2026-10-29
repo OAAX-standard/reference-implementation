@@ -239,3 +239,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    You may obtain a copy of the License at
 
        http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+Not distributed: Ultralytics (used only by the optional tests)
+   https://github.com/ultralytics/ultralytics
+   License: AGPL-3.0
+================================================================================
+
+   The test suite (tests/models.py) can import the `ultralytics` Python package
+   to download YOLOv8/YOLO11 weights and export them to ONNX. It is an optional
+   dependency (`uv sync --extra integration`) that each user installs on their own
+   machine. Neither Ultralytics, its weights, nor models exported with it are part
+   of this repository or of any released runtime or conversion toolchain, and
+   they must not be committed (`*.pt` and `*.onnx` are git-ignored).
