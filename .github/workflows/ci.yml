@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
@@ -46,36 +48,6 @@ jobs:
           path: runtime-library/artifacts/runtime-library-AARCH64.tar.gz
           retention-days: 1
 
-      - name: Determine version
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            version=$(cat VERSION)
-          else
-            version="$GITHUB_HEAD_REF"
-          fi
-          echo "version=$version" >> "$GITHUB_ENV"
-
-      - name: Install s3cmd
-        run: sudo apt-get update -y && sudo apt-get install -y s3cmd
-
-      - name: Upload runtimes to S3
-        env:
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
-        run: |
-          s3cmd_flags="--access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY --host=$S3_ENDPOINT_URL --host-bucket=%(bucket)s.$S3_ENDPOINT_URL --bucket-location=us-east-1 --ssl"
-          # shellcheck disable=SC2086
-          s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/x86_64/Ubuntu/library.tar.gz"
-          # shellcheck disable=SC2086
-          s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/${{ env.version }}/CPU/aarch64/Ubuntu/library.tar.gz"
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            # shellcheck disable=SC2086
-            s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-X86_64.tar.gz" "s3://oaax/runtimes/latest/CPU/x86_64/Ubuntu/library.tar.gz"
-            # shellcheck disable=SC2086
-            s3cmd $s3cmd_flags put "runtime-library/artifacts/runtime-library-AARCH64.tar.gz" "s3://oaax/runtimes/latest/CPU/aarch64/Ubuntu/library.tar.gz"
-          fi
-
   build-runtime-windows:
     name: Build runtime (Windows)
     timeout-minutes: 15
@@ -100,45 +72,6 @@ jobs:
           path: runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz
           retention-days: 1
 
-      - name: Determine version
-        id: version
-        shell: pwsh
-        run: |
-          if ("${{ github.ref }}" -eq "refs/heads/main") {
-            $version = Get-Content VERSION
-          } else {
-            $version = $env:GITHUB_HEAD_REF
-          }
-          echo "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Upload runtime to S3
-        shell: pwsh
-        run: |
-          $version = $env:version
-          $artifactPath = "runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz"
-          $targetKey = "runtimes/$version/CPU/x86_64/Windows/library.tar.gz"
-          $latestTargetKey = "runtimes/latest/CPU/x86_64/Windows/library.tar.gz"
-
-          $s5cmdUrl = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
-          $s5cmdZip = "$env:USERPROFILE\s5cmd.zip"
-          $s5cmdPath = "$env:USERPROFILE\s5cmd"
-          $expectedSha256 = "9d8a98c1d9f6284c6d54aeec3daeb5f1412fd101850ae756c1e70dd8ffe52166"
-          Invoke-WebRequest -Uri $s5cmdUrl -OutFile $s5cmdZip
-          $actualSha256 = (Get-FileHash $s5cmdZip -Algorithm SHA256).Hash.ToLower()
-          if ($actualSha256 -ne $expectedSha256) {
-            throw "s5cmd checksum mismatch: expected $expectedSha256, got $actualSha256"
-          }
-          Expand-Archive -Path $s5cmdZip -DestinationPath $s5cmdPath -Force
-          Remove-Item -Path $s5cmdZip
-          $env:PATH += ";$s5cmdPath"
-
-          $env:AWS_ACCESS_KEY_ID = "${{ secrets.S3_ACCESS_KEY }}"
-          $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.S3_SECRET_KEY }}"
-          s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$targetKey"
-          if ("${{ github.ref }}" -eq "refs/heads/main") {
-            s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp "$artifactPath" "s3://oaax/$latestTargetKey"
-          }
-
   build-toolchain:
     name: Build conversion toolchain
     timeout-minutes: 15
@@ -158,32 +91,6 @@ jobs:
           name: toolchain-image
           path: conversion-toolchain/artifacts/oaax-cpu-toolchain.tar
           retention-days: 1
-
-      - name: Determine version
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            version=$(cat VERSION)
-          else
-            version="$GITHUB_HEAD_REF"
-          fi
-          echo "version=$version" >> "$GITHUB_ENV"
-
-      - name: Install s3cmd
-        run: sudo apt-get update -y && sudo apt-get install -y s3cmd
-
-      - name: Upload toolchain to S3
-        env:
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
-        run: |
-          s3cmd_flags="--access_key=$S3_ACCESS_KEY --secret_key=$S3_SECRET_KEY --host=$S3_ENDPOINT_URL --host-bucket=%(bucket)s.$S3_ENDPOINT_URL --bucket-location=us-east-1 --ssl"
-          # shellcheck disable=SC2086
-          s3cmd $s3cmd_flags put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/${{ env.version }}/CPU/oaax-cpu-toolchain.tar"
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            # shellcheck disable=SC2086
-            s3cmd $s3cmd_flags put "conversion-toolchain/artifacts/oaax-cpu-toolchain.tar" "s3://oaax/conversion-toolchain/latest/CPU/oaax-cpu-toolchain.tar"
-          fi
 
   # ── Test jobs (depend on build jobs) ────────────────────────────────────────
 
@@ -401,3 +308,43 @@ jobs:
           name: benchmark-results-windows
           path: results-windows.csv
           if-no-files-found: warn
+
+  # ── Publish (v* tags only) ──────────────────────────────────────────────────
+  # Runs after every build and test passed and uploads the bytes that were tested. Pull requests and main pushes run it
+  # as a dry run (files checked, keys printed, no S3 access), so a broken path shows up before the next tag.
+
+  publish:
+    name: Publish to the OAAX bucket
+    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    needs: [test-stage1, test-stage2-x86_64, test-stage2-arm64, test-stage2-windows]
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0  # the tag check below needs main's history
+
+      - name: Tag must match VERSION and be on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [ "${TAG#v}" = "$(cat VERSION)" ] || { echo "tag $TAG does not match VERSION $(cat VERSION)"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$TAG is not on main, tag a commit of main"; exit 1; }
+
+      - name: Download the build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          path: artifacts
+
+      - name: Install s3cmd
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: sudo apt-get update -y && sudo apt-get install -y s3cmd
+
+      - name: Upload to S3 (tags) or check the files (dry run)
+        env:
+          S3_ACCESS_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_ACCESS_KEY || '' }}
+          S3_SECRET_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_SECRET_KEY || '' }}
+          S3_ENDPOINT_URL: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_ENDPOINT_URL || '' }}
+          DRY_RUN: ${{ startsWith(github.ref, 'refs/tags/v') && '0' || '1' }}
+        run: bash scripts/publish-artifacts.sh "$(cat VERSION)" artifacts
