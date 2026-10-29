@@ -4,7 +4,7 @@
 - Fixed 19 security issues (2 critical, 6 high, 7 medium, 4 low): double free and leak in the worker loop, `exit()` inside the shared library, `--onnx-path` validation, the toolchain container running as root, unpinned CI actions and Python dependencies.
 - Added a test framework: pytest suites (conversion, Docker end to end, YOLO), C++ runtime tests and an OAAX vs. ONNX Runtime benchmark.
 - Test-time use of Ultralytics (AGPL-3.0, optional, not distributed) is now listed in `THIRD_PARTY_NOTICES.txt`.
-- Release process: artifacts are uploaded to the bucket only when a `vX.Y.Z` tag is pushed, after all tests pass, and a published version is never overwritten.
+- Release process: a release is uploaded to the bucket only when a `vX.Y.Z` tag is pushed, after all tests pass, and a published version is never overwritten. PRs still upload to `<branch>/` for testing.
 
 # Version 1.1.3 (2025-10-14)
 - Adds support for Ubuntu 25, by removing the executable flag from the libraries ELF.

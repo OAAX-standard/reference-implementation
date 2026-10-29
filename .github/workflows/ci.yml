@@ -309,9 +309,11 @@ jobs:
           path: results-windows.csv
           if-no-files-found: warn
 
-  # ── Publish (v* tags only) ──────────────────────────────────────────────────
-  # Runs after every build and test passed and uploads the bytes that were tested. Pull requests and main pushes run it
-  # as a dry run (files checked, keys printed, no S3 access), so a broken path shows up before the next tag.
+  # ── Publish ─────────────────────────────────────────────────────────────────
+  # Runs after every build and test passed and uploads the bytes that were tested:
+  #   v* tag               -> <VERSION>/ (write once) and latest/, the release
+  #   pull request         -> <branch>/ (overwritten on every run, removed when the PR closes), for testing
+  #   anything else, or a PR without secrets (fork, Dependabot) -> dry run: files checked, keys printed
 
   publish:
     name: Publish to the OAAX bucket
@@ -338,13 +340,20 @@ jobs:
           path: artifacts
 
       - name: Install s3cmd
-        if: startsWith(github.ref, 'refs/tags/v')
         run: sudo apt-get update -y && sudo apt-get install -y s3cmd
 
-      - name: Upload to S3 (tags) or check the files (dry run)
+      - name: Upload to S3
         env:
-          S3_ACCESS_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_ACCESS_KEY || '' }}
-          S3_SECRET_KEY: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_SECRET_KEY || '' }}
-          S3_ENDPOINT_URL: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.S3_ENDPOINT_URL || '' }}
-          DRY_RUN: ${{ startsWith(github.ref, 'refs/tags/v') && '0' || '1' }}
-        run: bash scripts/publish-artifacts.sh "$(cat VERSION)" artifacts
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+        # The branch name reaches the script only through the environment (GITHUB_HEAD_REF), never through ${{ }}.
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            mode=release name=$(cat VERSION)
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -n "$S3_ACCESS_KEY" ]; then
+            mode=branch name=$GITHUB_HEAD_REF
+          else
+            mode=dry name=$(cat VERSION)
+          fi
+          bash scripts/publish-artifacts.sh "$mode" "$name" artifacts
