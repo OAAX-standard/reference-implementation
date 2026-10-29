@@ -35,14 +35,14 @@ jobs:
         run: bash runtime-library/build-runtimes.sh
 
       - name: Upload X86_64 runtime artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: runtime-linux-x86_64
           path: runtime-library/artifacts/runtime-library-X86_64.tar.gz
           retention-days: 1
 
       - name: Upload AARCH64 runtime artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: runtime-linux-aarch64
           path: runtime-library/artifacts/runtime-library-AARCH64.tar.gz
@@ -66,7 +66,7 @@ jobs:
           .\build-runtime.bat
 
       - name: Upload Windows runtime artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: runtime-windows-x86_64
           path: runtime-library\artifacts\runtime-library-X86_64-Windows.tar.gz
@@ -86,7 +86,7 @@ jobs:
         run: bash conversion-toolchain/build-toolchain.sh
 
       - name: Upload toolchain artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: toolchain-image
           path: conversion-toolchain/artifacts/oaax-cpu-toolchain.tar
@@ -143,7 +143,7 @@ jobs:
         run: uv run python tests/stage1.py
 
       - name: Upload simplified models
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: simplified-models
           path: tests/test_models/simplified/
@@ -197,7 +197,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: benchmark-results-linux-x86_64
           path: results-linux-x86_64.csv
@@ -251,7 +251,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: benchmark-results-linux-arm64
           path: results-linux-arm64.csv
@@ -303,7 +303,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: benchmark-results-windows
           path: results-windows.csv
