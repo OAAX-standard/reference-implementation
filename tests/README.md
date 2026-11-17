@@ -75,7 +75,7 @@ Batch-4 variants (`test_b4_*`) repeat the above for batch size 4 (`yolo11n_b4`, 
 
 ### `stage1.py` — End-to-end conversion pipeline
 
-Runs the full conversion suite: downloads YOLO models via Ultralytics, converts each to a simplified ONNX, then runs the pytest suites above. Populates `tests/test_models/simplified/` for use by `stage2.py`.
+Runs the full conversion suite: downloads YOLO models via Ultralytics (AGPL-3.0, optional test-time dependency, see `THIRD_PARTY_NOTICES.txt`; never commit the downloaded `.pt` or exported `.onnx` files), converts each to a simplified ONNX, then runs the pytest suites above. Populates `tests/test_models/simplified/` for use by `stage2.py`.
 
 ```bash
 uv run python tests/stage1.py

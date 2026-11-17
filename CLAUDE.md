@@ -96,9 +96,11 @@ Pre-built third-party libraries (ONNX Runtime 1.21.1, RE2, cpuinfo) live in `run
 ### CI/CD
 
 `.github/workflows/` has three pipelines:
-- `ci.yml`: builds (Linux X86_64/AARCH64, Windows MSVC, toolchain Docker image), then Stage 1 (conversion tests + model simplification) and Stage 2 (runtime benchmarks on Linux x86_64/arm64 and Windows).
+- `ci.yml`: builds (Linux X86_64/AARCH64, Windows MSVC, toolchain Docker image), then Stage 1 (conversion tests + model simplification) and Stage 2 (runtime benchmarks on Linux x86_64/arm64 and Windows), then `publish`. `publish` uploads to the S3 bucket via `scripts/publish-artifacts.sh`: a `vX.Y.Z` tag uploads the release (keys under the version are written once, `latest/` follows the newest release); a PR uploads to `<branch>/` for testing (overwritten on each run; branch names that look like a release are refused); `main` pushes and PRs without secrets (forks, Dependabot) only do a dry run.
 - `lint.yml`: pre-commit — ruff, clang-format, shellcheck, hadolint.
-- `delete-temporary-artifacts.yml`: S3 cleanup for old PR artifacts.
+- `delete-temporary-artifacts.yml`: removes a PR's `<branch>/` artifacts from S3 when it closes.
+
+Release: bump `VERSION` and `CHANGELOG.md` on `main`, then push the tag `vX.Y.Z` on that commit (it must match `VERSION`).
 
 A `DCO` app check requires every commit's sign-off to match its author. Note: if a PR is `CONFLICTING` with main, `pull_request` workflows silently don't run at all — resolve the conflict first.
 
